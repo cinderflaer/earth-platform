@@ -118,8 +118,9 @@ public final class EarthWorlds {
             choice = new Choice(settings, name);
         }
         CubicSettings.pinEarth(cubicFolder(server), choice.settings, choice.name);
-        // Nobody stays in the stand-in overworld: keep no spawn area loaded, and don't search one for a spawn spot.
-        // TODO(26.2): the spawn chunk radius rule is gone; the spawn area is the respawn data now.
+        // Nobody stays in the stand-in overworld: don't search a spawn spot around the world spawn.
+        // Since 26.1 there is no spawn chunk radius rule: the game keeps no area around the world spawn loaded (no
+        // ticket is held for it), so there is nothing left to switch off. RESPAWN_RADIUS only sizes PlayerSpawnFinder's search.
         server.getGameRules().set(GameRules.RESPAWN_RADIUS, 0, server);
         EarthPlatformMod.LOGGER.info("New Earth world, home {} {}, {}", choice.settings.latitude(), choice.settings.longitude(), choice.name);
     }
