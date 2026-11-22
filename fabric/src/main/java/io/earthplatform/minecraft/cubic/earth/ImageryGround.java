@@ -29,7 +29,7 @@ final class ImageryGround {
     private static final BlockState[] BLOCKS = new BlockState[GroundPalette.Ground.values().length];
     static {
         for (GroundPalette.Ground ground : GroundPalette.Ground.values())
-            BLOCKS[ground.ordinal()] = BuiltInRegistries.BLOCK.get(Identifier.withDefaultNamespace(ground.id())).defaultBlockState();
+            BLOCKS[ground.ordinal()] = BuiltInRegistries.BLOCK.getValue(Identifier.withDefaultNamespace(ground.id())).defaultBlockState();
     }
 
     private final ImagerySource imagery;

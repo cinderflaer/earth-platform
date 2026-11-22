@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import net.minecraft.world.level.chunk.Strategy;
 
 /**
  * A far column as exact vertical runs: for each of its 256 voxel columns, the few spans of one block
@@ -197,11 +198,11 @@ public final class FarSurfacePacket {
         List<LevelChunkSection> result = new ArrayList<>(height / 16);
         BlockState air = Blocks.AIR.defaultBlockState();
         for (int si = 0; si < height / 16; si++) {
-            var palette = new PalettedContainer<>(biomeIds, initialBiome, PalettedContainer.Strategy.SECTION_BIOMES);
+            var palette = new PalettedContainer<>(initialBiome, Strategy.createForBiomes(biomeIds));
             for (int z = 0; z < 4; z++) for (int x = 0; x < 4; x++) for (int y = 0; y < 4; y++)
                 palette.set(x, y, z, biomes.get(z * 4 + x));
-            var section = new LevelChunkSection(new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, air,
-                    PalettedContainer.Strategy.SECTION_STATES), palette);
+            var section = new LevelChunkSection(new PalettedContainer<>(air,
+                    Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY)), palette);
             for (int y = 0; y < 16; y++) for (int z = 0; z < 16; z++) for (int x = 0; x < 16; x++) {
                 BlockState state = block(x, si * 16 + y, z);
                 if (state != air) section.setBlockState(x, y, z, state, false);

@@ -99,9 +99,8 @@ final class StructureLevel implements WorldGenLevel {
         this.seed = seed;
         this.random = random;
         this.biomes = new BiomeManager(this, BiomeManager.obfuscateSeed(seed));
-        var biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
-        this.scratch = new ProtoChunk(ChunkPos.ZERO, UpgradeData.EMPTY, net.minecraft.world.level.LevelHeightAccessor.create(0, 16), biomeRegistry, null) {
-            @Override public void markPosForPostprocessing(BlockPos pos) { postProcess.add(key(real(pos))); }
+        this.scratch = new ProtoChunk(ChunkPos.ZERO, UpgradeData.EMPTY, net.minecraft.world.level.LevelHeightAccessor.create(0, 16), net.minecraft.world.level.chunk.PalettedContainerFactory.create(level.registryAccess()), null) {
+            @Override public void markPosForPostProcessing(BlockPos pos) { postProcess.add(key(real(pos))); }
         };
         this.light = new LevelLightEngine(new net.minecraft.world.level.chunk.LightChunkGetter() {
             @Override public net.minecraft.world.level.chunk.LightChunk getChunkForLighting(int x, int z) { return null; }
@@ -204,8 +203,8 @@ final class StructureLevel implements WorldGenLevel {
 
     @Override public boolean addFreshEntity(Entity entity) {
         if (shift != 0) entity.setPos(entity.getX(), entity.getY() + shift, entity.getZ());
-        CompoundTag tag = new CompoundTag();
-        if (entity.saveAsPassenger(tag)) entities.add(tag);
+        var output = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, level.registryAccess());
+        if (entity.saveAsPassenger(output)) entities.add(output.buildResult());
         return true;
     }
     @Override public <T extends Entity> List<T> getEntities(EntityTypeTest<Entity, T> test, AABB box, Predicate<? super T> predicate) { return Collections.emptyList(); }
@@ -220,10 +219,10 @@ final class StructureLevel implements WorldGenLevel {
     @Override public BiomeManager getBiomeManager() { return biomes; }
     @Override public Holder<Biome> getUncachedNoiseBiome(int qx, int qy, int qz) { return terrain.biome(qx << 2, (qy << 2) + shift, qz << 2); }
     @Override public Holder<Biome> getNoiseBiome(int qx, int qy, int qz) { return getUncachedNoiseBiome(qx, qy, qz); }
-    @Override public float getShade(Direction direction, boolean shade) { return 1; }
     @Override public LevelLightEngine getLightEngine() { return light; }
     @Override public int getSkyDarken() { return 0; }
-    @Override public int getMinBuildHeight() { return minY; }
+    @Override public net.minecraft.world.attribute.EnvironmentAttributeReader environmentAttributes() { return net.minecraft.world.attribute.EnvironmentAttributeReader.EMPTY; }
+    @Override public int getMinY() { return minY; }
     @Override public int getHeight() { return height; }
     @Override public int getSeaLevel() { return seaLevel; }
 
@@ -236,7 +235,7 @@ final class StructureLevel implements WorldGenLevel {
     @Override public FeatureFlagSet enabledFeatures() { return level.enabledFeatures(); }
     @Override public LevelData getLevelData() { return level.getLevelData(); }
     @Override public DifficultyInstance getCurrentDifficultyAt(BlockPos pos) {
-        return new DifficultyInstance(level.getDifficulty(), level.getDayTime(), 0L, level.getMoonBrightness());
+        return new DifficultyInstance(level.getDifficulty(), level.getDefaultClockTime(), 0L, level.getMoonBrightness(pos));
     }
     @Override public MinecraftServer getServer() { return level.getServer(); }
     @Override public ChunkSource getChunkSource() { return level.getChunkSource(); }
@@ -246,8 +245,8 @@ final class StructureLevel implements WorldGenLevel {
     @Override public long nextSubTickCount() { return 0; }
     @Override public LevelTickAccess<net.minecraft.world.level.block.Block> getBlockTicks() { return BlackholeTickAccess.emptyLevelList(); }
     @Override public LevelTickAccess<Fluid> getFluidTicks() { return BlackholeTickAccess.emptyLevelList(); }
-    @Override public void playSound(@Nullable Player player, BlockPos pos, SoundEvent sound, SoundSource source, float volume, float pitch) {}
+    @Override public void playSound(@Nullable Entity player, BlockPos pos, SoundEvent sound, SoundSource source, float volume, float pitch) {}
     @Override public void addParticle(ParticleOptions particle, double x, double y, double z, double dx, double dy, double dz) {}
-    @Override public void levelEvent(@Nullable Player player, int type, BlockPos pos, int data) {}
+    @Override public void levelEvent(@Nullable Entity player, int type, BlockPos pos, int data) {}
     @Override public void gameEvent(Holder<GameEvent> event, Vec3 pos, GameEvent.Context context) {}
 }

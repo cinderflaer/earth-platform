@@ -16,9 +16,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CaveVines;
 import net.minecraft.world.level.block.MultifaceBlock;
-import net.minecraft.world.level.block.PointedDripstoneBlock;
+import net.minecraft.world.level.block.SpeleothemBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.DripstoneThickness;
+import net.minecraft.world.level.block.state.properties.SpeleothemThickness;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.levelgen.synth.ImprovedNoise;
@@ -76,9 +76,9 @@ final class Underground {
         entrance = new ImprovedNoise(own); lush = new ImprovedNoise(own); dripstone = new ImprovedNoise(own);
         deepDark = new ImprovedNoise(own);
         veinToggle = new ImprovedNoise(own); veinA = new ImprovedNoise(own); veinB = new ImprovedNoise(own);
-        lushCaves = biomes.getHolderOrThrow(Biomes.LUSH_CAVES);
-        dripstoneCaves = biomes.getHolderOrThrow(Biomes.DRIPSTONE_CAVES);
-        deepDarkCaves = biomes.getHolderOrThrow(Biomes.DEEP_DARK);
+        lushCaves = biomes.getOrThrow(Biomes.LUSH_CAVES);
+        dripstoneCaves = biomes.getOrThrow(Biomes.DRIPSTONE_CAVES);
+        deepDarkCaves = biomes.getOrThrow(Biomes.DEEP_DARK);
         structures = new Structures(this, seed);
         modOres = new ModOres(terrain, this, seed, biomes);
         vanillaCaves = new VanillaCaves(seed);
@@ -570,10 +570,10 @@ final class Underground {
         if (n > 1 && (ly + n * step < 0 || ly + n * step > 15 || !section.getBlockState(lx, ly + n * step, lz).isAir())) n--;
         for (int i = 0; i < n; i++) {
             int fromTip = n - 1 - i;
-            DripstoneThickness thickness = fromTip == 0 ? DripstoneThickness.TIP : fromTip == 1 ? DripstoneThickness.FRUSTUM
-                    : i == 0 ? DripstoneThickness.BASE : DripstoneThickness.MIDDLE;
+            SpeleothemThickness thickness = fromTip == 0 ? SpeleothemThickness.TIP : fromTip == 1 ? SpeleothemThickness.FRUSTUM
+                    : i == 0 ? SpeleothemThickness.BASE : SpeleothemThickness.MIDDLE;
             section.setBlockState(lx, ly + i * step, lz, Blocks.POINTED_DRIPSTONE.defaultBlockState()
-                    .setValue(PointedDripstoneBlock.TIP_DIRECTION, direction).setValue(PointedDripstoneBlock.THICKNESS, thickness), false);
+                    .setValue(SpeleothemBlock.TIP_DIRECTION, direction).setValue(SpeleothemBlock.THICKNESS, thickness), false);
         }
     }
 

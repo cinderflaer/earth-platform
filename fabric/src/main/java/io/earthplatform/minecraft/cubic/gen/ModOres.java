@@ -103,6 +103,7 @@ final class ModOres {
     private final long seed;
     private final Registry<Biome> biomes;
     private final Holder<Biome> anyBiome;
+    private final net.minecraft.world.level.chunk.PalettedContainerFactory containers;
     private final ChunkGenerator generator;
     private final int oreStep = GenerationStep.Decoration.UNDERGROUND_ORES.ordinal();
     /** Null until the first cube asks. Empty when no mod adds ores, which is the usual test world. */
@@ -114,8 +115,12 @@ final class ModOres {
         this.under = under;
         this.seed = seed;
         this.biomes = biomes;
-        Holder<Biome> plains = biomes.getHolder(Biomes.PLAINS).orElse(null);
-        this.anyBiome = plains != null ? plains : biomes.holders().findFirst().orElseThrow();
+        Holder<Biome> plains = biomes.get(Biomes.PLAINS).orElse(null);
+        this.anyBiome = plains != null ? plains : biomes.listElements().findFirst().orElseThrow();
+        this.containers = new net.minecraft.world.level.chunk.PalettedContainerFactory(
+                net.minecraft.world.level.chunk.Strategy.createForBlockStates(net.minecraft.world.level.block.Block.BLOCK_STATE_REGISTRY),
+                net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), null,
+                net.minecraft.world.level.chunk.Strategy.createForBiomes(biomes.asHolderIdMap()), anyBiome, null);
         this.generator = new OreGenerator();
     }
 
@@ -200,16 +205,16 @@ final class ModOres {
         boolean restrict = tagsBound();
         Set<PlacedFeature> seen = Collections.newSetFromMap(new IdentityHashMap<>());
         List<Added> found = new ArrayList<>();
-        for (Holder<Biome> biome : biomes.holders().toList()) {
+        for (Holder<Biome> biome : biomes.listElements().toList()) {
             if (restrict && !biome.is(BiomeTags.IS_OVERWORLD)) continue;
             var steps = biome.value().getGenerationSettings().features();
             if (steps.size() <= oreStep) continue;
             for (Holder<PlacedFeature> placed : steps.get(oreStep)) {
                 PlacedFeature feature = placed.value();
                 if (!seen.add(feature)) continue;
-                String namespace = placed.unwrapKey().map(key -> key.location().getNamespace()).orElse("");
+                String namespace = placed.unwrapKey().map(key -> key.identifier().getNamespace()).orElse("");
                 if (namespace.equals("minecraft") || namespace.equals(EarthPlatformMod.MOD_ID)) continue;
-                String name = placed.unwrapKey().map(key -> key.location().toString()).orElse(featureName(feature));
+                String name = placed.unwrapKey().map(key -> key.identifier().toString()).orElse(featureName(feature));
                 found.add(new Added(feature, name, new AtomicBoolean()));
             }
         }
@@ -223,7 +228,7 @@ final class ModOres {
      */
     private boolean tagsBound() {
         try {
-            return biomes.holders().anyMatch(biome -> biome.is(BiomeTags.IS_OVERWORLD));
+            return biomes.listElements().anyMatch(biome -> biome.is(BiomeTags.IS_OVERWORLD));
         } catch (IllegalStateException unbound) {
             return false;
         }
@@ -318,7 +323,7 @@ final class ModOres {
         @Nullable @Override public Player getNearestPlayer(double x, double y, double z, double distance, @Nullable Predicate<Entity> predicate) { return null; }
 
         @Nullable @Override public ChunkAccess getChunk(int x, int z, ChunkStatus status, boolean required) {
-            return chunks.computeIfAbsent(ChunkPos.asLong(x, z), key -> new Slice(x, z));
+            return chunks.computeIfAbsent(ChunkPos.pack(x, z), key -> new Slice(x, z));
         }
         @Override public boolean hasChunk(int x, int z) { return true; }
         @Override public BiomeManager getBiomeManager() { return biomeManager; }
@@ -326,10 +331,10 @@ final class ModOres {
             return terrain.biomeAt(qx << 2, (qy << 2) + shift, qz << 2);
         }
         @Override public Holder<Biome> getNoiseBiome(int qx, int qy, int qz) { return getUncachedNoiseBiome(qx, qy, qz); }
-        @Override public float getShade(Direction direction, boolean shade) { return 1; }
         @Override public LevelLightEngine getLightEngine() { return light; }
         @Override public int getSkyDarken() { return 0; }
-        @Override public int getMinBuildHeight() { return VANILLA_MIN; }
+    @Override public net.minecraft.world.attribute.EnvironmentAttributeReader environmentAttributes() { return net.minecraft.world.attribute.EnvironmentAttributeReader.EMPTY; }
+        @Override public int getMinY() { return VANILLA_MIN; }
         @Override public int getHeight() { return VANILLA_HEIGHT; }
         @Override public int getSeaLevel() { return 63; }
 
@@ -352,20 +357,20 @@ final class ModOres {
         @Override public void scheduleTick(BlockPos pos, Block block, int delay) {}
         @Override public void scheduleTick(BlockPos pos, Fluid fluid, int delay, TickPriority priority) {}
         @Override public void scheduleTick(BlockPos pos, Fluid fluid, int delay) {}
-        @Override public void playSound(@Nullable Player player, BlockPos pos, SoundEvent sound, SoundSource source, float volume, float pitch) {}
+        @Override public void playSound(@Nullable Entity player, BlockPos pos, SoundEvent sound, SoundSource source, float volume, float pitch) {}
         @Override public void addParticle(ParticleOptions particle, double x, double y, double z, double dx, double dy, double dz) {}
-        @Override public void levelEvent(@Nullable Player player, int type, BlockPos pos, int data) {}
+        @Override public void levelEvent(@Nullable Entity player, int type, BlockPos pos, int data) {}
         @Override public void gameEvent(Holder<GameEvent> event, Vec3 pos, GameEvent.Context context) {}
 
         /** One vanilla chunk whose sections translate their rows onto the earth. */
         final class Slice extends ProtoChunk {
             private final LevelChunkSection[] rows = new LevelChunkSection[VANILLA_HEIGHT >> 4];
             Slice(int cx, int cz) {
-                super(new ChunkPos(cx, cz), UpgradeData.EMPTY, LevelHeightAccessor.create(VANILLA_MIN, VANILLA_HEIGHT), biomes, null);
+                super(new ChunkPos(cx, cz), UpgradeData.EMPTY, LevelHeightAccessor.create(VANILLA_MIN, VANILLA_HEIGHT), containers, null);
             }
             @Override public LevelChunkSection getSection(int index) {
                 LevelChunkSection row = rows[index];
-                if (row == null) rows[index] = row = new Mapped(getPos().x, getPos().z, VANILLA_MIN + index * 16);
+                if (row == null) rows[index] = row = new Mapped(getPos().x(), getPos().z(), VANILLA_MIN + index * 16);
                 return row;
             }
         }
@@ -374,7 +379,7 @@ final class ModOres {
         final class Mapped extends LevelChunkSection {
             private final int cx, cz, baseY;
             Mapped(int cx, int cz, int baseY) {
-                super(biomes);
+                super(containers);
                 this.cx = cx;
                 this.cz = cz;
                 this.baseY = baseY;
@@ -398,7 +403,7 @@ final class ModOres {
         @Override public int getGenDepth() { return VANILLA_HEIGHT; }
         @Override public int getSeaLevel() { return 63; }
         @Override protected MapCodec<? extends ChunkGenerator> codec() { throw new UnsupportedOperationException("mod ore frame"); }
-        @Override public void applyCarvers(WorldGenRegion region, long seed, RandomState random, BiomeManager biomes, StructureManager structures, ChunkAccess chunk, GenerationStep.Carving step) {}
+        @Override public void applyCarvers(WorldGenRegion region, long seed, RandomState random, BiomeManager biomes, StructureManager structures, ChunkAccess chunk) {}
         @Override public void buildSurface(WorldGenRegion region, StructureManager structures, RandomState random, ChunkAccess chunk) {}
         @Override public void spawnOriginalMobs(WorldGenRegion region) {}
         @Override public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState random, StructureManager structures, ChunkAccess chunk) {

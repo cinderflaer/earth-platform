@@ -55,9 +55,9 @@ public final class Strata {
     private static final List<Block> SOIL = List.of(Blocks.SAND, Blocks.RED_SAND, Blocks.SNOW_BLOCK,
             Blocks.POWDER_SNOW, Blocks.PODZOL, Blocks.MUD, Blocks.MOSS_BLOCK);
 
-    private static final Block WT = Blocks.WHITE_TERRACOTTA, LGT = Blocks.LIGHT_GRAY_TERRACOTTA, T = Blocks.TERRACOTTA,
-            RT = Blocks.RED_TERRACOTTA, OT = Blocks.ORANGE_TERRACOTTA, BT = Blocks.BROWN_TERRACOTTA, YT = Blocks.YELLOW_TERRACOTTA,
-            GT = Blocks.GREEN_TERRACOTTA, CT = Blocks.CYAN_TERRACOTTA, PT = Blocks.PINK_TERRACOTTA, PU = Blocks.PURPLE_TERRACOTTA,
+    private static final Block WT = Blocks.DYED_TERRACOTTA.white(), LGT = Blocks.DYED_TERRACOTTA.lightGray(), T = Blocks.TERRACOTTA,
+            RT = Blocks.DYED_TERRACOTTA.red(), OT = Blocks.DYED_TERRACOTTA.orange(), BT = Blocks.DYED_TERRACOTTA.brown(), YT = Blocks.DYED_TERRACOTTA.yellow(),
+            GT = Blocks.DYED_TERRACOTTA.green(), CT = Blocks.DYED_TERRACOTTA.cyan(), PT = Blocks.DYED_TERRACOTTA.pink(), PU = Blocks.DYED_TERRACOTTA.purple(),
             SS = Blocks.SANDSTONE, RSS = Blocks.RED_SANDSTONE;
 
     private static Formation f(String name, int thickness, Weathering weathering, int bed, Block... palette) {

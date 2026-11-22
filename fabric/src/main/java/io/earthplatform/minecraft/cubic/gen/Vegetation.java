@@ -6,6 +6,7 @@ import io.earthplatform.minecraft.cubic.gen.SurfaceGenerator.Surface;
 import io.earthplatform.minecraft.cubic.gen.SurfaceGenerator.Tree;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -18,12 +19,12 @@ import net.minecraft.world.level.block.BambooStalkBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoublePlantBlock;
-import net.minecraft.world.level.block.PinkPetalsBlock;
+import net.minecraft.world.level.block.FlowerBedBlock;
 import net.minecraft.world.level.block.SeaPickleBlock;
-import net.minecraft.world.level.block.SnowyDirtBlock;
+import net.minecraft.world.level.block.SnowyBlock;
 import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.BlockEntityTypeIds;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BambooLeaves;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -101,7 +102,7 @@ final class Vegetation {
      */
     static void bees(LevelChunkSection section, int x0, int y0, int z0, List<CompoundTag> blockEntities) {
         if (!section.maybeHas(state -> state.is(Blocks.BEE_NEST))) return;
-        String id = BlockEntityType.getKey(BlockEntityType.BEEHIVE).toString();
+        String id = BlockEntityTypeIds.BEEHIVE.identifier().toString();
         for (int i = 0; i < 4096; i++) {
             int lx = i & 15, lz = i >> 4 & 15, ly = i >> 8;
             if (!section.getBlockState(lx, ly, lz).is(Blocks.BEE_NEST)) continue;
@@ -146,7 +147,7 @@ final class Vegetation {
                 stalk = CACTUS;
                 stalkHeight = 1 + (int) Math.floorMod(r >>> 20, 3);
             }
-        } else if ((top == COARSE_DIRT || top.is(Blocks.LIGHT_GRAY_TERRACOTTA)) && (biome.is(Biomes.SAVANNA) || biome.is(Biomes.WINDSWEPT_SAVANNA)
+        } else if ((top == COARSE_DIRT || top.is(Blocks.DYED_TERRACOTTA.lightGray())) && (biome.is(Biomes.SAVANNA) || biome.is(Biomes.WINDSWEPT_SAVANNA)
                 || biome.is(Biomes.DESERT) || biome.is(Biomes.BADLANDS))) {
             // Dry scrub on bare dirt: sagebrush and saltbush stand-ins, with a few tufts of grass.
             if (roll < s.grass() / 5) plant = state(Blocks.DEAD_BUSH);
@@ -181,8 +182,8 @@ final class Vegetation {
             if (snowy && stalk == null && !(plant != null && plant.is(Blocks.SWEET_BERRY_BUSH)) && roll >= s.grass() / 3) plant = SNOW;
         }
         if (snowy && plant == null && stalk == null && !top.is(Blocks.POWDER_SNOW) && !top.is(Blocks.ICE) && !top.is(Blocks.PACKED_ICE)) plant = SNOW;
-        if (plant == SNOW && top.hasProperty(SnowyDirtBlock.SNOWY) && h >= y0 && h <= y0 + 15 && section.getBlockState(lx, h - y0, lz) == top)
-            section.setBlockState(lx, h - y0, lz, top.setValue(SnowyDirtBlock.SNOWY, true), false);
+        if (plant == SNOW && top.hasProperty(SnowyBlock.SNOWY) && h >= y0 && h <= y0 + 15 && section.getBlockState(lx, h - y0, lz) == top)
+            section.setBlockState(lx, h - y0, lz, top.setValue(SnowyBlock.SNOWY, true), false);
         int y = h + 1;
         if (stalk != null) {
             for (int k = 0; k < stalkHeight; k++) {
@@ -210,8 +211,8 @@ final class Vegetation {
     /** The flower a biome grows here; each kind grows in patches a few blocks across. */
     private BlockState flower(Holder<Biome> biome, int x, int z, long r) {
         if (biome.is(Biomes.SWAMP)) return state(Blocks.BLUE_ORCHID);
-        if (biome.is(Biomes.CHERRY_GROVE)) return state(Blocks.PINK_PETALS).setValue(PinkPetalsBlock.FACING, SIDES[(int) (r >>> 40 & 3)])
-                .setValue(PinkPetalsBlock.AMOUNT, 1 + (int) (r >>> 42 & 3));
+        if (biome.is(Biomes.CHERRY_GROVE)) return state(Blocks.PINK_PETALS).setValue(FlowerBedBlock.FACING, SIDES[(int) (r >>> 40 & 3)])
+                .setValue(FlowerBedBlock.AMOUNT, 1 + (int) (r >>> 42 & 3));
         long patch = gen.mix(x >> 3, 0x464C4F57L, z >> 3);
         if (biome.is(Biomes.SUNFLOWER_PLAINS) && Math.floorMod(patch, 10) < 6) return state(Blocks.SUNFLOWER);
         BlockState[] kinds;

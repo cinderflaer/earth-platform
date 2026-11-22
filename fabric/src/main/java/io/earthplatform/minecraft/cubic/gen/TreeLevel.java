@@ -112,10 +112,10 @@ final class TreeLevel implements WorldGenLevel {
     @Override public BiomeManager getBiomeManager() { return biomes; }
     @Override public Holder<Biome> getUncachedNoiseBiome(int qx, int qy, int qz) { return biome; }
     @Override public Holder<Biome> getNoiseBiome(int qx, int qy, int qz) { return biome; }
-    @Override public float getShade(Direction direction, boolean shade) { return 1; }
     @Override public LevelLightEngine getLightEngine() { return light; }
     @Override public int getSkyDarken() { return 0; }
-    @Override public int getMinBuildHeight() { return -64; }
+    @Override public net.minecraft.world.attribute.EnvironmentAttributeReader environmentAttributes() { return net.minecraft.world.attribute.EnvironmentAttributeReader.EMPTY; }
+    @Override public int getMinY() { return -64; }
     @Override public int getHeight() { return 512; }
     @Override public int getSeaLevel() { return -64; }
 
@@ -141,8 +141,8 @@ final class TreeLevel implements WorldGenLevel {
     @Override public void scheduleTick(BlockPos pos, Block block, int delay) {}
     @Override public void scheduleTick(BlockPos pos, Fluid fluid, int delay, TickPriority priority) {}
     @Override public void scheduleTick(BlockPos pos, Fluid fluid, int delay) {}
-    @Override public void playSound(@Nullable Player player, BlockPos pos, SoundEvent sound, SoundSource source, float volume, float pitch) {}
+    @Override public void playSound(@Nullable Entity player, BlockPos pos, SoundEvent sound, SoundSource source, float volume, float pitch) {}
     @Override public void addParticle(ParticleOptions particle, double x, double y, double z, double dx, double dy, double dz) {}
-    @Override public void levelEvent(@Nullable Player player, int type, BlockPos pos, int data) {}
+    @Override public void levelEvent(@Nullable Entity player, int type, BlockPos pos, int data) {}
     @Override public void gameEvent(Holder<GameEvent> event, Vec3 pos, GameEvent.Context context) {}
 }

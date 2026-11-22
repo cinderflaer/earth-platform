@@ -54,7 +54,7 @@ public final class TerrainSlabs {
     }
 
     private static void register(Map<Block, BlockState> steps, Block ground, String name) {
-        Block block = BuiltInRegistries.BLOCK.get(Identifier.fromNamespaceAndPath(MOD_ID, name));
+        Block block = BuiltInRegistries.BLOCK.getValue(Identifier.fromNamespaceAndPath(MOD_ID, name));
         if (!(block instanceof SlabBlock slab) || !(slab.getStateDefinition().getProperty("generated") instanceof BooleanProperty generated)) {
             throw new IllegalStateException("This Earth world uses Countered's Terrain Slabs. Install Terrain Slabs 3.1.2 for Minecraft 1.21.1 to open it.");
         }
