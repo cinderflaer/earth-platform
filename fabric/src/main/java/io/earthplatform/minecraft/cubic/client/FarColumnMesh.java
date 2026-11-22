@@ -34,7 +34,7 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import io.earthplatform.minecraft.cubic.client.FarMesher.Built;
 import io.earthplatform.minecraft.cubic.client.FarMesher.Job;
 import io.earthplatform.minecraft.cubic.client.FarMesher.Part;
@@ -46,7 +46,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.util.Mth;
@@ -314,14 +314,14 @@ final class FarColumnMesh {
         float unit = 1.0F / UNIT;
         ShaderBlocks.begin(builder, job.shaderIds(), state, true, x, 0, z);
         face(builder, state, colour(state, biome, direction), direction, x * v, y * unit, z * v, v, height * unit, v,
-                LightTexture.FULL_SKY, texturedWater);
+                LightCoordsUtil.FULL_SKY, texturedWater);
         ShaderBlocks.end(builder, job.shaderIds());
     }
 
     BufferBuilder water() {
         if (water == null) {
             waterMemory = new ByteBufferBuilder(8192);
-            water = new BufferBuilder(waterMemory, VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+            water = new BufferBuilder(waterMemory, PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);
         }
         return water;
     }
@@ -329,7 +329,7 @@ final class FarColumnMesh {
     BufferBuilder waterWall(int wall) {
         if (waterWalls[wall] == null) {
             wallMemory[wall] = new ByteBufferBuilder(1024);
-            waterWalls[wall] = new BufferBuilder(wallMemory[wall], VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+            waterWalls[wall] = new BufferBuilder(wallMemory[wall], PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);
         }
         return waterWalls[wall];
     }

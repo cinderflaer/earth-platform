@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.core.Direction;
 
 /**
@@ -73,7 +73,7 @@ final class FarFaceMerger {
             ShaderBlocks.begin(out, builder.job.shaderIds(), water.state(), true, x, 0, z);
             // Only flat-coloured water merges; textured levels draw each water face on its own.
             builder.face(out, water.state(), water.argb(), direction, x * v, height * unit, z * v, width * v, 0, depth * v,
-                    LightTexture.FULL_SKY, false);
+                    LightCoordsUtil.FULL_SKY, false);
             ShaderBlocks.end(out, builder.job.shaderIds());
         });
     }

@@ -372,18 +372,18 @@ final class FarQueryCull {
         asked.epoch = epoch;
         asked.version = version;
         int savedProgram = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM), savedArray = GL11C.glGetInteger(GL30C.GL_VERTEX_ARRAY_BINDING);
-        int active = GlStateManager._getActiveTexture();
+        int active = FarGl.activeTexture();
         boolean depthMask = GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK), cull = GL11C.glIsEnabled(GL11C.GL_CULL_FACE), blend = GL11C.glIsEnabled(GL11C.GL_BLEND);
         boolean[] colour = new boolean[4];
         try (MemoryStack stack = MemoryStack.stackPush()) {
             var bytes = stack.malloc(4);
             GL11C.glGetBooleanv(GL11C.GL_COLOR_WRITEMASK, bytes);
             for (int i = 0; i < 4; i++) colour[i] = bytes.get(i) != 0;
-            GlStateManager._colorMask(false, false, false, false);
+            GlStateManager._colorMask(0);
             GlStateManager._depthMask(false);
             // Both sides of a box: nothing here counts on which way a triangle winds.
             GlStateManager._disableCull();
-            GlStateManager._disableBlend();
+            GlStateManager._disableBlend(0);
             GlStateManager._glUseProgram(program);
             GL30C.glBindVertexArray(array);
             GlStateManager._activeTexture(GL13C.GL_TEXTURE0 + FarGpu.QUERY_BOX_UNIT);
@@ -423,10 +423,10 @@ final class FarQueryCull {
             GlStateManager._activeTexture(active);
             GL30C.glBindVertexArray(savedArray);
             GlStateManager._glUseProgram(savedProgram);
-            GlStateManager._colorMask(colour[0], colour[1], colour[2], colour[3]);
+            GlStateManager._colorMask(FarGl.colourMask(colour[0], colour[1], colour[2], colour[3]));
             GlStateManager._depthMask(depthMask);
             if (cull) GlStateManager._enableCull(); else GlStateManager._disableCull();
-            if (blend) GlStateManager._enableBlend(); else GlStateManager._disableBlend();
+            if (blend) GlStateManager._enableBlend(0); else GlStateManager._disableBlend(0);
         }
         waiting.addLast(asked);
     }

@@ -1,8 +1,10 @@
 package io.earthplatform.minecraft.cubic.client;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.opengl.GlConst;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
@@ -12,6 +14,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL15C;
+import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL31C;
 import org.lwjgl.opengl.GL32C;
 import org.lwjgl.system.MemoryUtil;
@@ -88,7 +91,7 @@ final class FarWaterBuffers {
         try (mesh) {
             RenderSystem.assertOnRenderThread();
             MeshData.DrawState state = mesh.drawState();
-            if (state.mode() != VertexFormat.Mode.QUADS) throw new IllegalArgumentException("Far water holds quads, not " + state.mode());
+            if (state.primitiveTopology() != PrimitiveTopology.QUADS) throw new IllegalArgumentException("Far water holds quads, not " + state.primitiveTopology());
             // Drawn with the shared quad indices, in the order built, as CubeBuffer draws a mesh with no sorted indices of its own.
             if (mesh.indexBuffer() != null) throw new IllegalArgumentException("Far water's quads are not sorted");
             VertexFormat format = state.format();
@@ -114,7 +117,7 @@ final class FarWaterBuffers {
 
     /** Moves every corner of a mesh's vertices by whole blocks, in place. */
     private static void move(ByteBuffer vertices, VertexFormat format, int count, int dx, int dy, int dz) {
-        int stride = format.getVertexSize(), position = format.getOffset(VertexFormatElement.POSITION);
+        int stride = format.getVertexSize(), position = format.getElement("Position").offset();
         long address = MemoryUtil.memAddress(vertices) + position;
         for (int i = 0; i < count; i++, address += stride) {
             MemoryUtil.memPutFloat(address, MemoryUtil.memGetFloat(address) + dx);
@@ -248,12 +251,35 @@ final class FarWaterBuffers {
 
         /** Points the array's attributes at the vertex buffer, as CubeBuffer sets up its own. */
         private void point() {
-            BufferUploader.invalidate();
+            int previous = GL11C.glGetInteger(GL30C.GL_VERTEX_ARRAY_BINDING);
             GlStateManager._glBindVertexArray(array);
             GlStateManager._glBindBuffer(GL15C.GL_ARRAY_BUFFER, vertices);
-            format.setupBufferState();
-            GlStateManager._glBindVertexArray(0);
-            BufferUploader.invalidate();
+            pointAttributes(format);
+            GlStateManager._glBindVertexArray(previous);
+        }
+
+        /**
+         * Points attribute i at the format's element i, as the format's setupBufferState did before
+         * 26.x; far water's shaders take their inputs in that order (see {@link FarWaterShader}).
+         */
+        private static void pointAttributes(VertexFormat format) {
+            List<VertexFormatElement> elements = format.getElements();
+            int stride = format.getVertexSize();
+            for (int i = 0; i < elements.size(); i++) {
+                VertexFormatElement element = elements.get(i);
+                GpuFormat type = element.format();
+                GlStateManager._enableVertexAttribArray(i);
+                if (integer(type)) GlStateManager._vertexAttribIPointer(i, type.componentCount(), GlConst.toGlType(type), stride, element.offset());
+                else GlStateManager._vertexAttribPointer(i, type.componentCount(), GlConst.toGlType(type), GlConst.isFormatNormalized(type), stride, element.offset());
+            }
+        }
+
+        /** Whether an element is read as integers (the light and overlay coordinates), not as floats. */
+        private static boolean integer(GpuFormat type) {
+            return switch (type.componentType()) {
+                case UINT_8, SINT_8, UINT_16, SINT_16, UINT_32, SINT_32 -> true;
+                default -> false;
+            };
         }
 
         Mesh add(ByteBuffer data, int quads, int indexCount) {
@@ -266,10 +292,10 @@ final class FarWaterBuffers {
             GL15C.glBufferSubData(GL31C.GL_COPY_WRITE_BUFFER, bytes(range.start()), data);
             GL15C.glBindBuffer(GL31C.GL_COPY_WRITE_BUFFER, 0);
             // The shared quad indices reach far enough for this mesh, bound into this array alone.
+            int previous = GL11C.glGetInteger(GL30C.GL_VERTEX_ARRAY_BINDING);
             GlStateManager._glBindVertexArray(array);
             CubeBuffer.QuadIndices.ensure(indexCount);
-            GlStateManager._glBindVertexArray(0);
-            BufferUploader.invalidate();
+            GlStateManager._glBindVertexArray(previous);
             return new Mesh(this, range, indexCount);
         }
 
@@ -292,8 +318,8 @@ final class FarWaterBuffers {
 
         void close() {
             if (array < 0) return;
-            RenderSystem.glDeleteBuffers(vertices);
-            RenderSystem.glDeleteVertexArrays(array);
+            GlStateManager._glDeleteBuffers(vertices);
+            GL30C.glDeleteVertexArrays(array);
             array = vertices = -1;
         }
     }

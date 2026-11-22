@@ -1,8 +1,6 @@
 package io.earthplatform.minecraft.cubic.client;
 
-import com.mojang.blaze3d.opengl.Uniform;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import io.earthplatform.geography.globe.MercatorGrid;
 import io.earthplatform.geography.globe.NamedThreads;
 import io.earthplatform.minecraft.EarthPlatformMod;
@@ -36,8 +34,6 @@ import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
@@ -52,6 +48,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11C;
 
 /**
  * Draws the voxel pyramid beyond the streamed cubes, the way Voxy does: columns of voxel
@@ -625,7 +622,7 @@ public final class FarRenderer {
 
     FarRenderer(ClientCubeWorld world) {
         this.world = world;
-        this.biomes = world.client().registryAccess().registryOrThrow(Registries.BIOME);
+        this.biomes = world.client().registryAccess().lookupOrThrow(Registries.BIOME);
         requested.defaultReturnValue(Integer.MIN_VALUE / 2);
         previewsAsked.defaultReturnValue(Integer.MIN_VALUE / 2);
     }
@@ -893,6 +890,11 @@ public final class FarRenderer {
      * the player looks. Zoom counts against the game's field of view, or the default 70 degrees when
      * that is wider: a field of view set narrow in the options shows the far ground bigger too.
      */
+    /** The player's view bob this tick (1) or the last (0); kept on the player's avatar state since 26.x. */
+    private static float bob(net.minecraft.world.entity.player.Player player, float partialTick) {
+        return player instanceof net.minecraft.client.player.AbstractClientPlayer client ? client.avatarState().getInterpolatedBob(partialTick) : 0.0F;
+    }
+
     private void zoom(net.minecraft.world.entity.player.Player player) {
         double normal = 1 / Math.tan(Math.toRadians(Math.max(Minecraft.getInstance().options.fov().get(), 70)) / 2);
         var eye = player.getEyePosition();
@@ -900,7 +902,7 @@ public final class FarRenderer {
         FarZoom before = zoomView;
         // The view as the game draws it may be tipped by walking (view bobbing), and ground is drawn lower under the Earth's curve.
         // Counted a client tick at a time, as this runs, and held for a second after the bob dies away, so a jump does not change the view twice.
-        bobHold = FarZoom.bobHold(Minecraft.getInstance().options.bobView().get(), player.bob, player.oBob, bobHold);
+        bobHold = FarZoom.bobHold(Minecraft.getInstance().options.bobView().get(), bob(player, 1.0F), bob(player, 0.0F), bobHold);
         zoomView = ZOOM ? FarZoom.at(focal / normal, spread * focal / normal, aspect, bobHold > 0, cullCurvature, eye.x, eye.y, eye.z, height,
                 player.getYRot(), player.getXRot(), zoomView) : null;
         // A view that zooms in or turns is planned for at once, not at the next half second: what it looks at is asked for first.
@@ -1601,7 +1603,7 @@ public final class FarRenderer {
         }
         var level = world.client();
         float[] shade = new float[6];
-        for (Direction direction : Direction.values()) shade[direction.get3DDataValue()] = level.getShade(direction, true);
+        for (Direction direction : Direction.values()) shade[direction.get3DDataValue()] = level.cardinalLighting().byFace(direction);
         FarMesher.Job job = new FarMesher.Job(column.key, column.version = nextVersion(), column.level, column.slot, column.x0, column.z0, column.bottom,
                 column.sections, column.drops, sides, diagonals, column.drawnCubes, column.level <= TEXTURED_LEVELS, looks, faces,
                 ShaderBlocks.ids(), shade, white(), column.packet, FarAtmosphere.smoothFrom(cruising), EarthView.cutsWater(ShaderBlocks.packInUse()));
@@ -1725,7 +1727,7 @@ public final class FarRenderer {
     }
 
     private void drawColumns(FarGpu gpu, Camera camera, Frustum frustum, Matrix4f modelView, Matrix4f projection) {
-        Vec3 position = camera.getPosition();
+        Vec3 position = camera.position();
         int bx = (int) Math.floor(position.x), bz = (int) Math.floor(position.z);
         focal = Math.abs(projection.m11());
         spread = Math.hypot(1 / projection.m00(), 1 / projection.m11());
@@ -1780,19 +1782,21 @@ public final class FarRenderer {
         // Under a pack with Voxy support far terrain keeps its own, finer depth (see FarLod).
         boolean own = pack && FarLod.active();
         Matrix4f farProjection = own ? FarLod.project(projection) : projection;
-        RenderType type = RenderType.solid();
-        type.setupRenderState();
-        ShaderInstance shader = RenderSystem.getShader();
-        // Applying the terrain shader binds a shader pack's terrain buffers, which the far terrain draws into too.
-        shader.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, Minecraft.getInstance().getWindow());
-        shader.apply();
+        // Until 26.x the solid render type's state was set up here: the game's main target bound, blending
+        // off, and its terrain shader applied, which under a shader pack bound the pack's terrain buffers too.
+        // The game no longer keeps render state between its passes, so far terrain binds the main target itself.
+        // TODO(26.2): under a shader pack nothing binds the pack's terrain buffers; far terrain draws into whatever the pack left bound.
+        boolean target = !pack && FarGl.beginMain();
+        if (!pack && !target) return;
+        GlStateManager._disableBlend(0);
+        GlStateManager._depthFunc(GL11C.GL_LEQUAL);
         // For the layered clouds to clip against, far terrain without a pack draws in its own finer
         // depth, only while they draw (see EarthClouds#layeredDrawing); it begins after the columns
         // inside the reach, which stay in the game's depth.
         boolean precise = PLAIN_DEPTH && !pack && camera.getFluidInCamera() == FogType.NONE && EarthClouds.layeredDrawing()
                 && gpu.preciseReady();
         float[] shade = new float[6];
-        for (Direction direction : Direction.values()) shade[direction.get3DDataValue()] = world.client().getShade(direction, true);
+        for (Direction direction : Direction.values()) shade[direction.get3DDataValue()] = world.client().cardinalLighting().byFace(direction);
         float reach = FarLod.nearReach();
         reachLists(seen, reach);
         // While the ground near the player loads, far terrain inside the reach leaves the game's blocks alone.
@@ -1913,8 +1917,7 @@ public final class FarRenderer {
             FarLod.endDeepen();
         }
         FarGpuTimers.end(deepenTimer);
-        shader.clear();
-        type.clearRenderState();
+        if (target) FarGl.endMain();
     }
 
     /**
@@ -3027,24 +3030,20 @@ public final class FarRenderer {
     }
 
     private void drawWaterColumns(Camera camera, Matrix4f modelView, Matrix4f projection) {
-        Vec3 position = camera.getPosition();
-        RenderType type = RenderType.translucent();
-        type.setupRenderState();
-        ShaderInstance shader = RenderSystem.getShader();
-        // Under the Earth's curve far water bends with far terrain, and is drawn nearer in depth instead of shrunk (see FarWaterShader).
-        ShaderInstance curved = curvature > 0 ? FarWaterShader.get() : null;
-        if (curved != null) {
-            shader = curved;
-            shader.safeGetUniform("EarthCurvature").set(curvature);
-            shader.safeGetUniform("EarthFlat").set((float) EarthView.FLAT);
-            shader.safeGetUniform("EarthDepthBias").set((float) WATER_LIFT);
-        }
-        shader.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, Minecraft.getInstance().getWindow());
-        shader.apply();
+        Vec3 position = camera.position();
+        // TODO(26.2): under a shader pack far water was drawn with the pack's translucent program (the game's
+        // translucent render type's shader); nothing gives that out now, so far water is left out under a pack.
+        if (ShaderBlocks.packInUse()) return;
+        // The game's translucent shader is a pipeline now: far water draws with a program of its own from the same
+        // sources, which under the Earth's curve bends with far terrain, and is drawn nearer in depth instead of shrunk.
+        FarWaterShader shader = FarWaterShader.get();
+        if (shader == null || !FarGl.beginMain()) return;
+        boolean curved = curvature > 0;
+        shader.begin(modelView, projection, curvature, (float) EarthView.FLAT, curved ? (float) WATER_LIFT : 0.0F);
         // With far terrain in its own depth, far hills hide the water behind them this way instead.
         boolean own = ShaderBlocks.packInUse() && FarLod.active() && FarLod.beginWater();
         long colourTimer = FarGpuTimers.begin("far water colour");
-        Uniform offset = shader.CHUNK_OFFSET, view = own || curved != null ? null : shader.MODEL_VIEW_MATRIX;
+        FarWaterShader offset = shader, view = own || curved ? null : shader;
         Matrix4f nearer = new Matrix4f();
         double lift = WATER_LIFT / nearPlane(projection);
         float lastX = Float.NaN, lastY = Float.NaN, lastZ = Float.NaN, lastScale = Float.NaN;
@@ -3060,15 +3059,11 @@ public final class FarRenderer {
                 // Water stays with the finer level where two levels fade into each other.
                 if (!FAST_WATER && (column.fade == FarGpu.FADE_IN || (pass == 0 ? column.water == null : !column.hasWaterWalls()))) continue;
                 if (offset != null && FarWaterBuffers.BATCH) {
-                    place = waterPlace(column, position, place, (x, y, z) -> {
-                        offset.set(x, y, z);
-                        offset.upload();
-                    });
+                    place = waterPlace(column, position, place, offset::offset);
                 } else if (offset != null) {
                     float x = (float) (column.x0 - position.x), y = (float) (column.baseY() - position.y), z = (float) (column.z0 - position.z);
                     if (!FAST_WATER || x != lastX || y != lastY || z != lastZ) {
-                        offset.set(x, y, z);
-                        offset.upload();
+                        offset.offset(x, y, z);
                         lastX = x; lastY = y; lastZ = z;
                     }
                 }
@@ -3085,8 +3080,7 @@ public final class FarRenderer {
                     float scale = (float) Math.max(0.8, 1.0 - distance * lift);
                     if (!FAST_WATER || scale != lastScale) {
                         waterBuffers.flush();
-                        view.set(nearer.set(modelView).scale(scale));
-                        view.upload();
+                        view.modelView(nearer.set(modelView).scale(scale));
                         lastScale = scale;
                     }
                 }
@@ -3103,8 +3097,8 @@ public final class FarRenderer {
         }
         waterBuffers.flush();
         FarGpuTimers.end(colourTimer);
-        if (offset != null) offset.set(0.0F, 0.0F, 0.0F);
-        if (view != null) view.set(modelView);
+        if (offset != null) offset.offset(0.0F, 0.0F, 0.0F);
+        if (view != null) view.modelView(modelView);
         if (own) FarLod.endWater(modelView, () -> {
             waterBuffers.begin();
             long at0 = NO_PLACE;
@@ -3124,9 +3118,9 @@ public final class FarRenderer {
             }
             waterBuffers.flush();
         });
-        shader.clear();
+        shader.end();
         waterBuffers.end();
-        type.clearRenderState();
+        FarGl.endMain();
     }
 
     /**

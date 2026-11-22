@@ -47,7 +47,7 @@ final class FarPlainDepth {
 
     /** Has far terrain draw in its own depth, from the game's target; false leaves it in the game's. */
     boolean begin(Matrix4f projection) {
-        var target = Minecraft.getInstance().getMainRenderTarget();
+        var target = FarGl.mainTarget();
         return begin(projection, target.width, target.height);
     }
 
@@ -67,7 +67,7 @@ final class FarPlainDepth {
         if (!FarBlockDepth.copy(targetWidth, targetHeight)) return false;
         game.set(projection);
         far.set(projection(projection));
-        int active = GlStateManager._getActiveTexture();
+        int active = FarGl.activeTexture();
         GlStateManager._activeTexture(GL13C.GL_TEXTURE0);
         int bound = GL11C.glGetInteger(GL11C.GL_TEXTURE_BINDING_2D);
         try {
@@ -118,7 +118,7 @@ final class FarPlainDepth {
 
     /** Merges far terrain's depth into the game's, where it is nearer, and draws on in the game's target again. */
     void end() {
-        int program = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM), active = GlStateManager._getActiveTexture();
+        int program = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM), active = FarGl.activeTexture();
         int heldVao = GL11C.glGetInteger(GL30C.GL_VERTEX_ARRAY_BINDING), depthFunc = GL11C.glGetInteger(GL11C.GL_DEPTH_FUNC);
         boolean depthTest = GL11C.glIsEnabled(GL11C.GL_DEPTH_TEST), cull = GL11C.glIsEnabled(GL11C.GL_CULL_FACE);
         boolean mask = GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK);
