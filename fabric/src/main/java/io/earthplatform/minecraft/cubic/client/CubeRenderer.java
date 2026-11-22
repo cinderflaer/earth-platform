@@ -1,9 +1,14 @@
 package io.earthplatform.minecraft.cubic.client;
 
-import com.mojang.blaze3d.opengl.Uniform;
+import com.mojang.blaze3d.IndexType;
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import io.earthplatform.geography.globe.NamedThreads;
 import io.earthplatform.minecraft.EarthPlatformMod;
 import io.earthplatform.minecraft.cubic.Cube;
@@ -11,7 +16,6 @@ import io.earthplatform.minecraft.cubic.CubeKey;
 import io.earthplatform.minecraft.cubic.Cubic;
 import io.earthplatform.minecraft.cubic.Timings;
 import io.earthplatform.minecraft.cubic.ViewOrder;
-import io.earthplatform.minecraft.platform.ClientPlatform;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -23,15 +27,19 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.client.renderer.DynamicUniforms;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayerGroup;
 import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.LightLayer;
@@ -263,7 +271,7 @@ public final class CubeRenderer {
         snapshots.invalidate(CubeKey.ofBlock(pos));
         int cx = pos.getX() >> 4, cy = pos.getY() >> 4, cz = pos.getZ() >> 4;
         boolean lighting = old.getLightEmission() != state.getLightEmission()
-                || old.getLightBlock(world.client(), pos) != state.getLightBlock(world.client(), pos);
+                || old.getLightDampening() != state.getLightDampening();
         if (lighting) { markAround(cx, cy, cz, true); return; }
         markDirty(CubeKey.pack(cx, cy, cz));
         int lx = pos.getX() & 15, ly = pos.getY() & 15, lz = pos.getZ() & 15;
@@ -391,22 +399,6 @@ public final class CubeRenderer {
         compiledVersion++;
     }
 
-    /**
-     * Block entity model data for the cube, gathered on the client thread the way vanilla's chunk
-     * compiler gets it. Together with the cube's block entities (handed to the mesher's view, as
-     * vanilla's render region does), connected and multiblock models such as Immersive Engineering's
-     * formed machines draw the right parts.
-     */
-    private static Map<BlockPos, Object> modelData(Cube cube) {
-        if (cube.blockEntities().isEmpty()) return Map.of();
-        Map<BlockPos, Object> data = new HashMap<>();
-        for (BlockEntity entity : cube.blockEntities().values()) {
-            Object model = ClientPlatform.INSTANCE.blockEntityModelData(entity);
-            if (model != null) data.put(entity.getBlockPos().immutable(), model);
-        }
-        return data;
-    }
-
     @SuppressWarnings("unchecked")
     private void submit(long key, Vec3 camera) {
         Cube center = world.cube(key);
@@ -432,8 +424,9 @@ public final class CubeRenderer {
         }
         int version = versions.get(key);
         CubeMesher.Snapshot snapshot = new CubeMesher.Snapshot(key, version, x, y, z, states, biomes, tops,
-                (float) camera.x, (float) camera.y, (float) camera.z, world.client().effects().constantAmbientLight(),
-                ShaderBlocks.ids(), modelData(center),
+                (float) camera.x, (float) camera.y, (float) camera.z, world.client().cardinalLighting(),
+                ShaderBlocks.ids(),
+                // The cube's block entities go to the mesher's view, as vanilla's render region has them.
                 center.blockEntities().isEmpty() ? Map.of() : new HashMap<>(center.blockEntities()));
         building.add(key);
         Timings.CUBE_SNAPSHOT.since(start);
@@ -533,13 +526,13 @@ public final class CubeRenderer {
      * first eye's list left the other eye's edges empty and its nearest-first order wrong.
      */
     private void prepare(Camera camera, Frustum frustum) {
-        Vec3 position = camera.getPosition();
+        Vec3 position = camera.position();
         if (drawnFrame != frame) {
             drawnFrame = frame;
             long start = System.nanoTime();
             upload();
             Timings.CUBE_UPLOAD.since(start);
-            schedule(position, camera.getYRot());
+            schedule(position, camera.yRot());
         }
         if (culledPass == LevelPasses.current()) return;
         culledPass = LevelPasses.current();
@@ -561,7 +554,7 @@ public final class CubeRenderer {
         BlockPos at = BlockPos.containing(position);
         // A camera inside a solid block (a spectator in rock) sees out through the faces round it, which no cube's
         // faces say: nothing is culled, as vanilla turns its own cave culling off there.
-        if (world.client().getBlockState(at).isSolidRender(world.client(), at)) return null;
+        if (world.client().getBlockState(at).isSolidRender()) return null;
         long from = CubeKey.ofBlock(at);
         if (from == reachedFrom && reachedVersion == visibilityVersion) return reached;
         long start = System.nanoTime();
@@ -688,18 +681,21 @@ public final class CubeRenderer {
         opaquePass = LevelPasses.current();
         prepare(camera, frustum);
         long start = System.nanoTime();
-        Vec3 position = camera.getPosition();
+        Vec3 position = camera.position();
         boolean occlude = CubeOcclusion.ON && LevelPasses.inFrame() == 0 && !visible.isEmpty() && occlusion.ready();
         if (occlude) split(position);
         drawOpaqueLayers(occlude ? first : visible, position, modelView, projection);
         if (occlude && !(rest.isEmpty() && recheck.isEmpty())) {
             // Phase two: each other cube's box against the depth phase one left, then its layers on condition of it.
-            CubeOcclusion.State state = occlusion.begin(modelView, projection);
-            try {
-                for (Mesh mesh : rest) ask(mesh, position);
-                for (Mesh mesh : recheck) ask(mesh, position);
-            } finally {
-                state.end();
+            // The boxes are drawn with raw OpenGL inside a render pass on the terrain's target, which binds its framebuffer.
+            try (RenderPass target = open(ChunkSectionLayer.SOLID, "Earth near cube occlusion")) {
+                CubeOcclusion.State state = occlusion.begin(modelView, projection);
+                try {
+                    for (Mesh mesh : rest) ask(mesh, position);
+                    for (Mesh mesh : recheck) ask(mesh, position);
+                } finally {
+                    state.end();
+                }
             }
             int pass = LevelPasses.current();
             for (Mesh mesh : rest) mesh.conditionalPass = pass;
@@ -710,8 +706,7 @@ public final class CubeRenderer {
 
     private void drawOpaqueLayers(List<Mesh> meshes, Vec3 position, Matrix4f modelView, Matrix4f projection) {
         for (int i = 0; i < CubeMesher.LAYERS.size(); i++) {
-            RenderType type = CubeMesher.LAYERS.get(i);
-            if (type == RenderType.translucent() || type == RenderType.tripwire()) continue;
+            if (CubeMesher.LAYERS.get(i).translucent()) continue;
             draw(i, meshes, position, modelView, projection, false, true);
         }
     }
@@ -761,8 +756,8 @@ public final class CubeRenderer {
         if (translucentPass == LevelPasses.current()) return;
         translucentPass = LevelPasses.current();
         prepare(camera, frustum);
-        draw(CubeMesher.LAYERS.indexOf(RenderType.translucent()), visible, camera.getPosition(), modelView, projection, true, true);
-        draw(CubeMesher.LAYERS.indexOf(RenderType.tripwire()), visible, camera.getPosition(), modelView, projection, true, true);
+        // Since 26.2 tripwire is drawn in the translucent layer, as vanilla does.
+        draw(CubeMesher.LAYERS.indexOf(ChunkSectionLayer.TRANSLUCENT), visible, camera.position(), modelView, projection, true, true);
     }
 
     /** Whether the opaque layers are drawn in this pass of the level already. */
@@ -775,7 +770,7 @@ public final class CubeRenderer {
      */
     public void drawShadow(Camera camera, Matrix4f modelView, Matrix4f projection) {
         upload();
-        Vec3 position = camera.getPosition();
+        Vec3 position = camera.position();
         // Iris's own shadow frustum, as its own sections are culled by: past drawing only what lies in the map, it
         // leaves out what can cast no shadow into the view, where the pack allows (see ShaderBlocks#shadowFrustum).
         Frustum iris = SHADOW_CULL ? ShaderBlocks.shadowFrustum() : null;
@@ -797,82 +792,131 @@ public final class CubeRenderer {
         for (Mesh mesh : retiring.values()) if (shadow.isVisible(mesh.box)) all.add(mesh);
         shadowDrawn = all.size();
         for (int i = 0; i < CubeMesher.LAYERS.size(); i++) {
-            RenderType type = CubeMesher.LAYERS.get(i);
-            if (type == RenderType.translucent() || type == RenderType.tripwire()) continue;
-            draw(i, all, camera.getPosition(), modelView, projection, false, false);
+            if (CubeMesher.LAYERS.get(i).translucent()) continue;
+            draw(i, all, position, modelView, projection, false, false);
         }
     }
 
     /** {@code conditions}: meshes occlusion culling tested this pass draw only where their box was seen. */
     private void draw(int layer, List<Mesh> visible, Vec3 camera, Matrix4f modelView, Matrix4f projection, boolean backToFront, boolean conditions) {
-        RenderType type = CubeMesher.LAYERS.get(layer);
-        boolean any = false;
-        for (Mesh mesh : visible) if (mesh.has(layer)) { any = true; break; }
-        if (!any) return;
-        type.setupRenderState();
-        ShaderInstance shader = RenderSystem.getShader();
-        shader.setDefaultUniforms(VertexFormat.Mode.QUADS, modelView, projection, Minecraft.getInstance().getWindow());
-        shader.apply();
-        Uniform offset = shader.CHUNK_OFFSET;
+        ChunkSectionLayer type = CubeMesher.LAYERS.get(layer);
+        // Before the render pass opens, since nothing may be written to a buffer while one is: each place's chunk
+        // section uniform (a region's, or a cube's), and the shared quad indices long enough for every mesh drawn.
+        Long2ObjectOpenHashMap<GpuBufferSlice> sections = sections(layer, visible, modelView);
+        if (sections == null) return;
+        int quadIndices = 0;
+        for (Mesh mesh : visible) {
+            if (mesh.slices[layer] != null) quadIndices = Math.max(quadIndices, mesh.slices[layer].quadIndices());
+            else if (mesh.buffers[layer] != null) quadIndices = Math.max(quadIndices, mesh.buffers[layer].quadIndices());
+        }
+        RenderSystem.AutoStorageIndexBuffer sequential = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+        GpuBuffer quads = sequential.getBuffer(Math.max(6, quadIndices));
+        IndexType quadType = sequential.type();
         int pass = LevelPasses.current();
-        // Meshes that share buffers by region: a call a buffer, or a run of cubes where the order matters.
-        if (CubeRegions.ON) regions.begin(offset, camera, backToFront);
-        for (int n = 0; n < visible.size(); n++) {
-            Mesh mesh = visible.get(backToFront ? visible.size() - 1 - n : n);
-            CubeRegions.Slice slice = mesh.slices[layer];
-            if (slice != null) {
-                if (conditions && mesh.conditionalPass == pass && mesh.query != 0) regions.drawOnCondition(slice, mesh.query);
-                else regions.draw(slice);
-                continue;
+        try (RenderPass render = open(type, "Earth near cubes " + type.label())) {
+            render.setPipeline(type.pipeline());
+            RenderSystem.bindDefaultUniforms(render);
+            render.bindTexture("Sampler0", blockAtlas(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR, true));
+            render.bindTexture("Sampler2", Minecraft.getInstance().gameRenderer.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+            // Meshes that share buffers by region: a call a buffer, or a run of cubes where the order matters.
+            if (CubeRegions.ON) regions.begin(render, sections, quads, quadType, backToFront);
+            try {
+                for (int n = 0; n < visible.size(); n++) {
+                    Mesh mesh = visible.get(backToFront ? visible.size() - 1 - n : n);
+                    CubeRegions.Slice slice = mesh.slices[layer];
+                    if (slice != null) {
+                        if (conditions && mesh.conditionalPass == pass && mesh.query != 0) regions.drawOnCondition(slice, mesh.query);
+                        else regions.draw(slice);
+                        continue;
+                    }
+                    CubeBuffer buffer = mesh.buffers[layer];
+                    if (buffer == null) continue;
+                    render.setUniform("ChunkSection", sections.get(mesh.key));
+                    boolean conditional = conditions && mesh.conditionalPass == pass && mesh.query != 0;
+                    if (conditional) CubeOcclusion.beginConditional(mesh.query);
+                    if (buffer.draw(render, quads, quadType)) drawCalls++;
+                    if (conditional) CubeOcclusion.endConditional();
+                }
+            } finally {
+                if (CubeRegions.ON) {
+                    regions.end();
+                    drawCalls += regions.takeCalls();
+                }
             }
-            CubeBuffer buffer = mesh.buffers[layer];
-            if (buffer == null) continue;
-            drawCalls++;
-            if (offset != null) {
-                offset.set((float) (mesh.x - camera.x), (float) (mesh.y - camera.y), (float) (mesh.z - camera.z));
-                offset.upload();
-            }
-            boolean conditional = conditions && mesh.conditionalPass == pass && mesh.query != 0;
-            if (conditional) CubeOcclusion.beginConditional(mesh.query);
-            buffer.draw();
-            if (conditional) CubeOcclusion.endConditional();
         }
-        if (CubeRegions.ON) {
-            regions.end();
-            drawCalls += regions.takeCalls();
-        }
-        if (offset != null) offset.set(0.0F, 0.0F, 0.0F);
-        shader.clear();
-        CubeBuffer.unbind();
-        type.clearRenderState();
     }
 
-    /** Block entities with their own renderers (chests, signs, beds...) near the camera. */
-    public void drawBlockEntities(Camera camera, Frustum frustum, PoseStack pose, float partialTick) {
-        Minecraft minecraft = Minecraft.getInstance();
-        BlockEntityRenderDispatcher dispatcher = minecraft.getBlockEntityRenderDispatcher();
-        MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        Vec3 position = camera.getPosition();
-        boolean any = false;
+    /**
+     * The chunk section uniform of each place the meshes drawing the layer lie in, by its key: a region's
+     * ({@link CubeRegions.Slice#region}) for meshes sharing buffers, else the cube's. The vertices lie in the place, so
+     * the shader moves them by the place's corner from the camera, as vanilla moves a section's. Null when no mesh in
+     * the list has the layer.
+     */
+    @org.jetbrains.annotations.Nullable
+    private static Long2ObjectOpenHashMap<GpuBufferSlice> sections(int layer, List<Mesh> visible, Matrix4f modelView) {
+        Long2ObjectOpenHashMap<GpuBufferSlice> sections = null;
+        List<DynamicUniforms.ChunkSectionInfo> infos = new ArrayList<>();
+        LongArrayList keys = new LongArrayList();
+        LongOpenHashSet seen = new LongOpenHashSet();
+        GpuTextureView atlas = blockAtlas();
+        int width = atlas.getWidth(0), height = atlas.getHeight(0);
+        for (Mesh mesh : visible) {
+            CubeRegions.Slice slice = mesh.slices[layer];
+            long key;
+            int x, y, z;
+            if (slice != null) {
+                key = slice.region();
+                x = CubeRegions.originX(key); y = CubeRegions.originY(key); z = CubeRegions.originZ(key);
+            } else if (mesh.buffers[layer] != null) {
+                key = mesh.key;
+                x = mesh.x; y = mesh.y; z = mesh.z;
+            } else {
+                continue;
+            }
+            if (!seen.add(key)) continue;
+            keys.add(key);
+            infos.add(new DynamicUniforms.ChunkSectionInfo(new Matrix4f(modelView), x, y, z, 1.0F, width, height));
+        }
+        if (infos.isEmpty()) return sections;
+        GpuBufferSlice[] written = RenderSystem.getDynamicUniforms().writeChunkSections(infos.toArray(new DynamicUniforms.ChunkSectionInfo[0]));
+        sections = new Long2ObjectOpenHashMap<>(written.length);
+        for (int i = 0; i < written.length; i++) sections.put(keys.getLong(i), written[i]);
+        return sections;
+    }
+
+    private static GpuTextureView blockAtlas() {
+        return Minecraft.getInstance().getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS).getTextureView();
+    }
+
+    /**
+     * A render pass on the target vanilla draws the layer's sections to (under a shader pack, the one it puts in their
+     * place), keeping its colour and depth.
+     */
+    private static RenderPass open(ChunkSectionLayer layer, String label) {
+        RenderTarget target = (layer.translucent() ? ChunkSectionLayerGroup.TRANSLUCENT : ChunkSectionLayerGroup.OPAQUE).outputTarget();
+        GpuTextureView color = RenderSystem.outputColorTextureOverride != null ? RenderSystem.outputColorTextureOverride : target.getColorTextureView();
+        GpuTextureView depth = RenderSystem.outputDepthTextureOverride != null ? RenderSystem.outputDepthTextureOverride : target.getDepthTextureView();
+        return RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> label, color, Optional.empty(), depth, OptionalDouble.empty());
+    }
+
+    /**
+     * Block entities with their own renderers (chests, signs, beds...) near the camera, extracted for the game to draw
+     * with its own: since 26.2 a block entity is drawn from a render state the level's extraction collects. Called
+     * where the level extracts its block entities.
+     */
+    public void extractBlockEntities(Frustum frustum, float partialTick, List<? super BlockEntityRenderState> into) {
+        BlockEntityRenderDispatcher dispatcher = Minecraft.getInstance().getBlockEntityRenderDispatcher();
         LongOpenHashSet caves = caveSeen;
         for (Cube cube : world.cubes()) {
             if (cube.blockEntities().isEmpty()) continue;
             // In a cube behind rock, as its terrain is, unless the renderer reaches out of it (a beacon's beam).
             boolean hidden = caves != null && !caves.contains(cube.key);
             for (BlockEntity entity : cube.blockEntities().values()) {
-                var renderer = dispatcher.getRenderer(entity);
-                if (renderer == null) continue;
-                if (hidden && !renderer.shouldRenderOffScreen(entity)) continue;
-                BlockPos pos = entity.getBlockPos();
-                if (!frustum.isVisible(new AABB(pos).inflate(1.0))) continue;
-                pose.pushPose();
-                pose.translate(pos.getX() - position.x, pos.getY() - position.y, pos.getZ() - position.z);
-                dispatcher.render(entity, partialTick, pose, buffers);
-                pose.popPose();
-                any = true;
+                if (!frustum.isVisible(new AABB(entity.getBlockPos()).inflate(1.0))) continue;
+                BlockEntityRenderState state = dispatcher.tryExtractRenderState(entity, partialTick, null, !hidden);
+                if (state != null) into.add(state);
             }
         }
-        if (any) buffers.endBatch();
     }
 
     void close() {

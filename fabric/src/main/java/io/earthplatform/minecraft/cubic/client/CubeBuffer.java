@@ -1,100 +1,92 @@
 package io.earthplatform.minecraft.cubic.client;
 
+import com.mojang.blaze3d.IndexType;
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import javax.annotation.Nullable;
-import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.system.MemoryUtil;
 
 /**
- * One layer of a near cube's mesh on the GPU, with its own vertex array, vertex buffer and index
- * buffer.
+ * One layer of a near cube's mesh on the GPU, with its own vertex buffer and, for sorted translucent quads, its own
+ * index buffer.
  *
- * <p>Vanilla's VertexBuffer leaves the quad indices to the game's shared sequential index buffer
- * and binds it into its vertex array only once, at upload. A later bind of another element buffer
- * while that array is current (a shader pack restoring "the last vertex buffer", or any code that
- * binds indices without its own array) silently replaced them, and the next uploads never put
- * them back. Under a shader pack on the Mac that drew every block face as one triangle of two and
- * stretched slanted sheets across the cube. Here the quad indices are our own and the index
- * buffer is bound again before every draw, so nothing outside can change which ones are used.
+ * <p>Before 26.2 this held its own vertex array and bound its index buffer again before every draw: a shader pack
+ * restoring "the last vertex buffer" could otherwise swap a shared array's indices, which on the Mac drew every face as
+ * one triangle of two. Since 26.2 the game's render pass binds the vertex and index buffers for each draw itself, so a
+ * mesh is two Blaze3D buffers drawn through the pass ({@link #draw}), unsorted quads with the game's shared quad indices.
  */
 final class CubeBuffer implements AutoCloseable {
-    private int array, vertices, indices;
-    @Nullable private VertexFormat format;
-    private int indexCount, indexType;
-    /** True when this layer has its own sorted indices (translucent), else the shared quad ones. */
-    private boolean sorted;
+    @Nullable private GpuBuffer vertices, indices;
+    private int indexCount;
+    private IndexType indexType = IndexType.INT;
+    private boolean closed;
 
     CubeBuffer() {
         RenderSystem.assertOnRenderThread();
-        array = GlStateManager._glGenVertexArrays();
-        vertices = GlStateManager._glGenBuffers();
-        indices = GlStateManager._glGenBuffers();
     }
 
-    /** Uploads a mesh (and closes it); leaves no vertex array bound. */
+    /** Uploads a mesh (and closes it). */
     void upload(MeshData mesh) {
         try (mesh) {
-            if (array < 0) return;
+            if (closed) return;
             RenderSystem.assertOnRenderThread();
             MeshData.DrawState state = mesh.drawState();
-            if (state.mode() != VertexFormat.Mode.QUADS) throw new IllegalArgumentException("Cube buffers hold quads, not " + state.mode());
-            BufferUploader.invalidate();
-            GlStateManager._glBindVertexArray(array);
-            GlStateManager._glBindBuffer(GL15C.GL_ARRAY_BUFFER, vertices);
-            if (!state.format().equals(format)) {
-                if (format != null) format.clearBufferState();
-                state.format().setupBufferState();
-                format = state.format();
-            }
+            if (state.primitiveTopology() != PrimitiveTopology.QUADS) throw new IllegalArgumentException("Cube buffers hold quads, not " + state.primitiveTopology());
+            release();
             ByteBuffer vertexData = mesh.vertexBuffer();
-            if (vertexData != null) RenderSystem.glBufferData(GL15C.GL_ARRAY_BUFFER, vertexData, GL15C.GL_STATIC_DRAW);
-            ByteBuffer own = mesh.indexBuffer();
-            sorted = own != null;
             indexCount = state.indexCount();
-            if (sorted) {
-                GlStateManager._glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, indices);
-                RenderSystem.glBufferData(GL15C.GL_ELEMENT_ARRAY_BUFFER, own, GL15C.GL_STATIC_DRAW);
-                indexType = state.indexType().asGLType;
+            if (vertexData == null || indexCount == 0) { indexCount = 0; return; }
+            vertices = RenderSystem.getDevice().createBuffer(() -> "Earth cube vertices", GpuBuffer.USAGE_VERTEX, vertexData);
+            ByteBuffer own = mesh.indexBuffer();
+            if (own != null) {
+                indices = RenderSystem.getDevice().createBuffer(() -> "Earth cube indices", GpuBuffer.USAGE_INDEX, own);
+                indexType = state.indexType();
             }
-            else {
-                QuadIndices.ensure(indexCount);
-                indexType = GL11C.GL_UNSIGNED_INT;
-            }
-            GlStateManager._glBindVertexArray(0);
-            BufferUploader.invalidate();
         }
     }
 
-    /** Draws the mesh with the current shader; the caller unbinds the array afterwards. */
-    void draw() {
-        if (array < 0 || indexCount == 0) return;
-        GlStateManager._glBindVertexArray(array);
-        GlStateManager._glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, sorted ? indices : QuadIndices.name);
-        GlStateManager._drawElements(GL11C.GL_TRIANGLES, indexCount, indexType, 0L);
+    /** Indices the draw needs from the shared quad indices, 0 when it has sorted ones of its own. */
+    int quadIndices() { return indices == null ? indexCount : 0; }
+
+    /**
+     * Draws the mesh in a render pass whose pipeline, uniforms and textures are set; {@code quads} are the game's shared
+     * quad indices, of the {@code quadType}, long enough for {@link #quadIndices}.
+     */
+    boolean draw(RenderPass pass, GpuBuffer quads, IndexType quadType) {
+        if (closed || vertices == null || indexCount == 0) return false;
+        pass.setVertexBuffer(0, vertices.slice());
+        if (indices != null) pass.setIndexBuffer(indices, indexType);
+        else pass.setIndexBuffer(quads, quadType);
+        pass.drawIndexed(0, 0, indexCount, 1, 0);
+        return true;
     }
 
+    /** Leaves no vertex array bound, for far water's raw OpenGL draws ({@link FarWaterBuffers}). */
     static void unbind() {
         GlStateManager._glBindVertexArray(0);
-        BufferUploader.invalidate();
+    }
+
+    private void release() {
+        if (vertices != null) vertices.close();
+        if (indices != null) indices.close();
+        vertices = indices = null;
     }
 
     @Override
     public void close() {
-        if (array < 0) return;
-        RenderSystem.glDeleteBuffers(vertices);
-        RenderSystem.glDeleteBuffers(indices);
-        RenderSystem.glDeleteVertexArrays(array);
-        array = vertices = indices = -1;
+        if (closed) return;
+        closed = true;
+        release();
     }
 
-    /** Indices 0 1 2 2 3 0 for every quad, as 32-bit ints, shared by every opaque layer and by far water ({@link FarWaterBuffers}). */
+    /** Indices 0 1 2 2 3 0 for every quad, as 32-bit ints, shared by far water ({@link FarWaterBuffers}). */
     static final class QuadIndices {
         static int name;
         static int capacity;

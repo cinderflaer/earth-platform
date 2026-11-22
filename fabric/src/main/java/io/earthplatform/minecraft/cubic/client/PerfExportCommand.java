@@ -32,8 +32,8 @@ public final class PerfExportCommand {
                     String folder = zip.getParent().toAbsolutePath().toString();
                     message = Component.literal("Saved performance report " + zip.getFileName() + ". ")
                             .append(Component.literal("[Open folder]").withStyle(style -> style.withColor(ChatFormatting.AQUA).withUnderlined(true)
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, folder))
-                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(folder)))))
+                                    .withClickEvent(new ClickEvent.OpenFile(folder))
+                                    .withHoverEvent(new HoverEvent.ShowText(Component.literal(folder)))))
                             .append(Component.literal(" Attach it to a bug report. It holds no names, places or addresses."));
                 } catch (NoSuchFileException none) {
                     message = Component.literal("No performance log yet. Play for a minute and try again.").withStyle(ChatFormatting.YELLOW);
@@ -42,7 +42,7 @@ public final class PerfExportCommand {
                     message = Component.literal("Could not save the performance report: " + failure.getClass().getSimpleName()).withStyle(ChatFormatting.RED);
                 }
                 Component shown = message;
-                mc.execute(() -> mc.gui.getChat().addMessage(shown));
+                mc.execute(() -> mc.gui.chatListener().handleSystemMessage(shown, false));
             });
             return 1;
         })));

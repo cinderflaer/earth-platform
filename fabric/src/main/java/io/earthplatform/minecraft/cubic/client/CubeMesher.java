@@ -1,10 +1,12 @@
 package io.earthplatform.minecraft.cubic.client;
 
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
-import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.QuadInstance;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import io.earthplatform.minecraft.EarthPlatformMod;
@@ -12,25 +14,29 @@ import io.earthplatform.minecraft.cubic.CubeKey;
 import io.earthplatform.minecraft.cubic.CubeLight;
 import io.earthplatform.minecraft.cubic.CubeWorld;
 import io.earthplatform.minecraft.cubic.Timings;
-import io.earthplatform.minecraft.platform.ClientPlatform;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.block.BlockModelLighter;
+import net.minecraft.client.renderer.block.BlockQuadOutput;
+import net.minecraft.client.renderer.block.BlockStateModelSet;
+import net.minecraft.client.renderer.block.FluidRenderer;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.client.resources.model.SimpleBakedModel;
-import net.minecraft.client.resources.model.WeightedBakedModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.dispatch.SingleVariant;
+import net.minecraft.client.renderer.block.dispatch.WeightedVariants;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
@@ -50,15 +56,15 @@ import net.minecraft.world.level.material.FluidState;
  */
 final class CubeMesher {
     private static final int SIZE = CubeLight.SIZE;
-    static final List<RenderType> LAYERS = RenderType.chunkBufferLayers();
+    /** The layers a cube's mesh has, in the order drawn; a layer's index is its place here. */
+    static final List<ChunkSectionLayer> LAYERS = List.of(ChunkSectionLayer.values());
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 
     /** Copied on the client thread; the worker only reads it. */
     record Snapshot(long key, int version, int cx, int cy, int cz,
                     @Nullable PalettedContainer<BlockState>[] states, @Nullable PalettedContainerRO<Holder<Biome>>[] biomes,
-                    @Nullable int[][] tops, float camX, float camY, float camZ, boolean constantAmbient,
-                    @Nullable Object2IntMap<BlockState> shaderIds, Map<BlockPos, Object> modelData,
-                    Map<BlockPos, BlockEntity> blockEntities) {}
+                    @Nullable int[][] tops, float camX, float camY, float camZ, CardinalLighting lighting,
+                    @Nullable Object2IntMap<BlockState> shaderIds, Map<BlockPos, BlockEntity> blockEntities) {}
 
     record Layer(int index, MeshData mesh, ByteBufferBuilder memory) {}
     /** {@code visibility}: which faces the cube's air joins ({@link CubeCaves#of}). */
@@ -74,23 +80,14 @@ final class CubeMesher {
      */
     private static final boolean SKIP_BURIED = !"false".equals(System.getProperty("earthplatform.cubes.skipBuried"));
     /**
-     * Each block is drawn with one pose set to its place, the same matrices as a copy of the identity pose pushed and
-     * moved there, which made two new matrices a block. {@code false} pushes a copy for every block, for comparing.
-     */
-    private static final boolean REUSE_POSE = !"false".equals(System.getProperty("earthplatform.cubes.reusePose"));
-    /**
      * {@code -Dearthplatform.cubes.skipInterior=true}: a cube of solid stone or deepslate sealed in by more of it on all
      * six faces, under its column's sky ({@link CubeInterior}), is neither lit nor meshed. Every block in it is buried,
      * so the mesh would be empty, the light dark and no face joined to another; this skips the light, the walk over its
      * blocks and the cave graph that find that out.
      */
     private static final boolean SKIP_INTERIOR = Boolean.getBoolean("earthplatform.cubes.skipInterior");
-    /**
-     * Models draw their random numbers from a plain LCG, the same numbers as vanilla's legacy source without its atomic
-     * seed, which every draw updated with a compare-and-set: a block's model reseeds it seven times. {@code false} keeps
-     * the legacy source, for comparing (as for generation, the flag {@code cubes.plainRandom}).
-     */
-    private static final boolean PLAIN_RANDOM = !"false".equals(System.getProperty("earthplatform.cubes.plainRandom"));
+    // Since 26.2 the model renderer places each block by its offset in the cube and draws its random numbers from its
+    // own single-threaded source, so the old flags cubes.reusePose and cubes.plainRandom have nothing left to change.
     /**
      * With {@code -Dearthplatform.cubes.checkMesh=true}, every cube is also meshed and lit the plain way, every speedup
      * off, and a warning names any cube whose light or vertices differ.
@@ -98,9 +95,9 @@ final class CubeMesher {
     private static final boolean CHECK_MESH = Boolean.getBoolean("earthplatform.cubes.checkMesh");
 
     /** Which speedups a mesh uses: the flags', or none, for {@link #CHECK_MESH}. */
-    private record Mode(boolean skipBuried, boolean reusePose, boolean plainRandom, boolean fastLight, boolean skipInterior) {}
-    private static final Mode FLAGS = new Mode(SKIP_BURIED, REUSE_POSE, PLAIN_RANDOM, CubeLight.FAST_LIGHT, SKIP_INTERIOR);
-    private static final Mode PLAIN = new Mode(false, false, false, false, false);
+    private record Mode(boolean skipBuried, boolean fastLight, boolean skipInterior) {}
+    private static final Mode FLAGS = new Mode(SKIP_BURIED, CubeLight.FAST_LIGHT, SKIP_INTERIOR);
+    private static final Mode PLAIN = new Mode(false, false, false);
     private static final java.util.concurrent.atomic.AtomicInteger CHECKED = new java.util.concurrent.atomic.AtomicInteger();
     private static final java.util.concurrent.atomic.AtomicInteger DIFFERENT = new java.util.concurrent.atomic.AtomicInteger();
     private static final java.util.concurrent.atomic.AtomicInteger NORMALS = new java.util.concurrent.atomic.AtomicInteger();
@@ -112,8 +109,9 @@ final class CubeMesher {
     private static final ThreadLocal<Work> WORK = ThreadLocal.withInitial(Work::new);
 
     private static final class Work {
-        final PoseStack pose = new PoseStack(), placed = new PoseStack();
-        final RandomSource random = RandomSource.create(), plain = RandomSource.createNewThreadLocalInstance();
+        /** The same kind of source as the model renderer's own, to ask a model for its parts as it does. */
+        final RandomSource random = RandomSource.createThreadLocalInstance(0L);
+        final List<BlockStateModelPart> parts = new java.util.ArrayList<>();
         final BlockPos.MutableBlockPos near = new BlockPos.MutableBlockPos();
     }
 
@@ -145,10 +143,10 @@ final class CubeMesher {
      * may give stone such quads, and a mod's or a weighted model may draw what its faces do not say, so those are meshed.
      */
     private static boolean onlyCulledFaces(Snapshot s, Work work) {
-        BlockRenderDispatcher blocks = Minecraft.getInstance().getBlockRenderer();
+        BlockStateModelSet blocks = Minecraft.getInstance().getModelManager().getBlockStateModelSet();
         return !s.states[13].maybeHas(state -> {
-            BakedModel model = blocks.getBlockModel(state);
-            return model.getClass() != SimpleBakedModel.class || !model.getQuads(state, null, work.plain).isEmpty();
+            BlockStateModel model = blocks.get(state);
+            return model.getClass() != SingleVariant.class || unculled(model, work, 0L);
         });
     }
 
@@ -162,7 +160,7 @@ final class CubeMesher {
             BlockState state = field.states[CubeLight.index(x + 16, y + 16, z + 16)];
             if (state.isAir()) continue;
             pos.set(x0 + x, y0 + y, z0 + z);
-            if (state.isSolidRender(view, pos)) { graph.setOpaque(pos); any = true; }
+            if (state.isSolidRender()) { graph.setOpaque(pos); any = true; }
         }
         return any ? CubeCaves.of(graph.resolve()) : CubeCaves.OPEN;
     }
@@ -178,10 +176,8 @@ final class CubeMesher {
             if (differ == null && differ(built, plain, true) != null) NORMALS.incrementAndGet();
             if (differ != null) {
                 StringBuilder culprits = new StringBuilder();
-                Mode[] alone = {new Mode(true, false, false, false, false), new Mode(false, true, false, false, false),
-                        new Mode(false, false, true, false, false), new Mode(false, false, false, true, false),
-                        new Mode(false, false, false, false, true)};
-                String[] names = {"skipBuried", "reusePose", "plainRandom", "fastLight", "skipInterior"};
+                Mode[] alone = {new Mode(true, false, false), new Mode(false, true, false), new Mode(false, false, true)};
+                String[] names = {"skipBuried", "fastLight", "skipInterior"};
                 for (int i = 0; i < alone.length; i++) {
                     Built one = build(s, work, alone[i]);
                     if (differ(one, plain, false) != null) culprits.append(' ').append(names[i]);
@@ -218,9 +214,9 @@ final class CubeMesher {
             boolean skipNormals = !normals && format != DefaultVertexFormat.BLOCK;
             for (int vertex = 0; vertex < vertices; vertex++) {
                 for (com.mojang.blaze3d.vertex.VertexFormatElement element : format.getElements()) {
-                    if (skipNormals && element == com.mojang.blaze3d.vertex.VertexFormatElement.NORMAL) continue;
-                    int from = vertex * size + format.getOffset(element);
-                    for (int k = from; k < from + element.byteSize(); k++) {
+                    if (skipNormals && DefaultVertexFormat.NORMAL_SEMANTIC_NAME.equals(element.name())) continue;
+                    int from = vertex * size + element.offset();
+                    for (int k = from; k < from + element.format().blockSize(); k++) {
                         if (va.get(k) == vb.get(k)) continue;
                         StringBuilder bytes = new StringBuilder();
                         for (int j = vertex * size; j < (vertex + 1) * size; j++) bytes.append(String.format(" %02x/%02x", va.get(j), vb.get(j)));
@@ -235,14 +231,15 @@ final class CubeMesher {
 
     private static List<Layer> mesh(Snapshot s, Work work, CubeLight.Field field, View view, Mode mode) {
         Minecraft minecraft = Minecraft.getInstance();
-        BlockRenderDispatcher blocks = minecraft.getBlockRenderer();
-        BufferBuilder[] builders = new BufferBuilder[LAYERS.size()];
-        ByteBufferBuilder[] memory = new ByteBufferBuilder[LAYERS.size()];
-        PoseStack pose = mode.reusePose ? work.placed : work.pose;
-        RandomSource random = mode.plainRandom ? work.plain : work.random;
+        BlockStateModelSet blocks = minecraft.getModelManager().getBlockStateModelSet();
+        // Set up as vanilla's section compiler sets them up for each section it compiles.
+        ModelBlockRenderer renderer = new ModelBlockRenderer(minecraft.options.ambientOcclusion().get(), true, minecraft.getBlockColors());
+        FluidRenderer fluids = new FluidRenderer(minecraft.getModelManager().getFluidStateModelSet());
+        boolean cutoutLeaves = minecraft.options.cutoutLeaves().get();
+        Output output = new Output(s.shaderIds);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int x0 = s.cx << 4, y0 = s.cy << 4, z0 = s.cz << 4;
-        ModelBlockRenderer.enableCaching();
+        BlockModelLighter.enableCaching();
         try {
             for (int y = 0; y < 16; y++) for (int z = 0; z < 16; z++) for (int x = 0; x < 16; x++) {
                 BlockState state = field.states[CubeLight.index(x + 16, y + 16, z + 16)];
@@ -250,52 +247,91 @@ final class CubeMesher {
                 pos.set(x0 + x, y0 + y, z0 + z);
                 FluidState fluid = state.getFluidState();
                 if (!fluid.isEmpty()) {
-                    BufferBuilder builder = builder(builders, memory, LAYERS.indexOf(ItemBlockRenderTypes.getRenderLayer(fluid)));
-                    ShaderBlocks.begin(builder, s.shaderIds, fluid.createLegacyBlock(), true, x, y, z);
-                    blocks.renderLiquid(pos, view, builder, state, fluid);
-                    ShaderBlocks.end(builder, s.shaderIds);
+                    output.begin(fluid.createLegacyBlock(), true, x, y, z, false);
+                    fluids.tesselate(view, pos, output, state, fluid);
+                    output.end();
                 }
                 if (state.getRenderShape() != RenderShape.MODEL) continue;
-                BakedModel model = blocks.getBlockModel(state);
-                Object data = ClientPlatform.INSTANCE.modelData(model, view, pos, state, s.modelData.get(pos));
+                BlockStateModel model = blocks.get(state);
                 long seed = state.getSeed(pos);
-                random.setSeed(seed);
-                boolean buried = mode.skipBuried && plain(model) && buried(state, view, pos, work.near);
-                for (RenderType type : ClientPlatform.INSTANCE.renderTypes(model, state, random, data)) {
-                    int layer = LAYERS.indexOf(type);
-                    if (layer < 0) continue;
-                    if (buried) {
-                        // Every face is hidden, so it draws only the quads no face hides, asked for as the model pass does.
-                        random.setSeed(seed);
-                        if (ClientPlatform.INSTANCE.quads(model, state, null, random, data, type).isEmpty()) continue;
-                    }
-                    BufferBuilder builder = builder(builders, memory, layer);
-                    if (mode.reusePose) {
-                        pose.setIdentity();
-                    } else {
-                        pose.pushPose();
-                    }
-                    pose.translate(x, y, z);
-                    ShaderBlocks.begin(builder, s.shaderIds, state, false, x, y, z);
-                    ClientPlatform.INSTANCE.renderBatched(blocks, state, pos, view, pose, builder, random, data, type);
-                    ShaderBlocks.end(builder, s.shaderIds);
-                    if (!mode.reusePose) pose.popPose();
-                }
+                // Every face is hidden, so it draws only the quads no face hides, asked for as the model pass does.
+                if (mode.skipBuried && plain(model) && buried(state, view, pos, work.near) && !unculled(model, work, seed)) continue;
+                output.begin(state, false, x, y, z, ModelBlockRenderer.forceOpaque(cutoutLeaves, state));
+                renderer.tesselateBlock(output, x, y, z, view, pos, state, model, seed);
+                output.end();
             }
         } finally {
-            ModelBlockRenderer.clearCache();
+            BlockModelLighter.clearCache();
         }
         List<Layer> layers = new java.util.ArrayList<>();
-        for (int i = 0; i < builders.length; i++) {
-            if (builders[i] == null) continue;
-            MeshData mesh = builders[i].build();
-            if (mesh == null) { memory[i].close(); continue; }
-            if (LAYERS.get(i) == RenderType.translucent()) {
-                mesh.sortQuads(memory[i], VertexSorting.byDistance(s.camX - x0, s.camY - y0, s.camZ - z0));
+        for (int i = 0; i < output.builders.length; i++) {
+            if (output.builders[i] == null) continue;
+            MeshData mesh = output.builders[i].build();
+            if (mesh == null) { output.memory[i].close(); continue; }
+            if (LAYERS.get(i) == ChunkSectionLayer.TRANSLUCENT) {
+                mesh.sortQuads(output.memory[i], VertexSorting.byDistance(s.camX - x0, s.camY - y0, s.camZ - z0));
             }
-            layers.add(new Layer(i, mesh, memory[i]));
+            layers.add(new Layer(i, mesh, output.memory[i]));
         }
         return layers;
+    }
+
+    /** Whether the model, its parts picked with the seed as the model renderer picks them, has quads no face hides. */
+    private static boolean unculled(BlockStateModel model, Work work, long seed) {
+        work.random.setSeed(seed);
+        work.parts.clear();
+        model.collectParts(work.random, work.parts);
+        try {
+            for (BlockStateModelPart part : work.parts) if (!part.getQuads(null).isEmpty()) return true;
+            return false;
+        } finally {
+            work.parts.clear();
+        }
+    }
+
+    /**
+     * Where the model and fluid renderers put a block's quads: each layer's builder, started when first needed. The
+     * block's shader pack id ({@link ShaderBlocks}) is set on each builder the block writes to, and cleared after it.
+     */
+    private static final class Output implements BlockQuadOutput, FluidRenderer.Output {
+        final BufferBuilder[] builders = new BufferBuilder[LAYERS.size()];
+        final ByteBufferBuilder[] memory = new ByteBufferBuilder[LAYERS.size()];
+        @Nullable private final Object2IntMap<BlockState> ids;
+        private BlockState state = AIR;
+        private boolean fluid, opaque;
+        private int x, y, z, begun;
+
+        Output(@Nullable Object2IntMap<BlockState> ids) { this.ids = ids; }
+
+        /** {@code opaque}: every quad goes to the solid layer, as vanilla puts leaves there without cutout leaves. */
+        void begin(BlockState state, boolean fluid, int x, int y, int z, boolean opaque) {
+            this.state = state; this.fluid = fluid; this.x = x; this.y = y; this.z = z; this.opaque = opaque;
+            begun = 0;
+        }
+
+        void end() {
+            for (int i = 0; i < builders.length; i++) if ((begun & 1 << i) != 0) ShaderBlocks.end(builders[i], ids);
+            begun = 0;
+        }
+
+        private BufferBuilder layer(ChunkSectionLayer layer) {
+            int i = layer.ordinal();
+            if (builders[i] == null) {
+                memory[i] = new ByteBufferBuilder(i == 0 ? 131072 : 16384);
+                builders[i] = new BufferBuilder(memory[i], PrimitiveTopology.QUADS, layer.vertexFormat());
+            }
+            if ((begun & 1 << i) == 0) {
+                begun |= 1 << i;
+                ShaderBlocks.begin(builders[i], ids, state, fluid, x, y, z);
+            }
+            return builders[i];
+        }
+
+        @Override public void put(float x, float y, float z, BakedQuad quad, QuadInstance instance) {
+            layer(opaque ? ChunkSectionLayer.SOLID : quad.materialInfo().layer()).putBlockBakedQuad(x, y, z, quad, instance);
+        }
+
+        @Override public VertexConsumer getBuilder(ChunkSectionLayer layer) { return layer(layer); }
     }
 
     /**
@@ -303,9 +339,9 @@ final class CubeMesher {
      * says, and the quads no face hides. A model of any other kind, such as a mod's connected textures, always goes
      * through the model pass.
      */
-    private static boolean plain(BakedModel model) {
+    private static boolean plain(BlockStateModel model) {
         Class<?> kind = model.getClass();
-        return kind == SimpleBakedModel.class || kind == WeightedBakedModel.class;
+        return kind == SingleVariant.class || kind == WeightedVariants.class;
     }
 
     /** Faces in the order most likely to show, so a block in sight is found out at once. */
@@ -314,17 +350,9 @@ final class CubeMesher {
     /** Whether vanilla's face check hides all six faces of the block, as the model pass asks it. */
     private static boolean buried(BlockState state, View view, BlockPos pos, BlockPos.MutableBlockPos near) {
         for (Direction face : FACES) {
-            if (Block.shouldRenderFace(state, view, pos, face, near.setWithOffset(pos, face))) return false;
+            if (Block.shouldRenderFace(state, view.getBlockState(near.setWithOffset(pos, face)), face)) return false;
         }
         return true;
-    }
-
-    private static BufferBuilder builder(BufferBuilder[] builders, ByteBufferBuilder[] memory, int layer) {
-        if (builders[layer] == null) {
-            memory[layer] = new ByteBufferBuilder(layer == 0 ? 131072 : 16384);
-            builders[layer] = new BufferBuilder(memory[layer], VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
-        }
-        return builders[layer];
     }
 
     /** The lit 48-block neighbourhood as a vanilla block getter. */
@@ -356,18 +384,10 @@ final class CubeMesher {
         @Override public FluidState getFluidState(BlockPos pos) { return getBlockState(pos).getFluidState(); }
         @Override @Nullable public BlockEntity getBlockEntity(BlockPos pos) { return s.blockEntities.get(pos); }
         @Override public int getHeight() { return CubeWorld.MAX_Y - CubeWorld.MIN_Y + 1; }
-        @Override public int getMinBuildHeight() { return CubeWorld.MIN_Y; }
+        @Override public int getMinY() { return CubeWorld.MIN_Y; }
 
-        @Override public float getShade(Direction direction, boolean shade) {
-            boolean flat = s.constantAmbient;
-            if (!shade) return flat ? 0.9F : 1.0F;
-            return switch (direction) {
-                case DOWN -> flat ? 0.9F : 0.5F;
-                case UP -> flat ? 0.9F : 1.0F;
-                case NORTH, SOUTH -> 0.8F;
-                case WEST, EAST -> 0.6F;
-            };
-        }
+        /** How much each face is shaded, as the client level has it (flat in the Nether). */
+        @Override public CardinalLighting cardinalLighting() { return s.lighting; }
 
         @Override public LevelLightEngine getLightEngine() { return Minecraft.getInstance().level.getLightEngine(); }
 

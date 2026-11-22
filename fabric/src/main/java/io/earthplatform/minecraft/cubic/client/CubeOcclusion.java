@@ -88,7 +88,7 @@ final class CubeOcclusion {
     /** Sets up drawing boxes: no colour, no depth written, sides facing the camera, the depth test as terrain has it. */
     State begin(Matrix4f modelView, Matrix4f projection) {
         State state = new State();
-        GlStateManager._colorMask(false, false, false, false);
+        GlStateManager._colorMask(0);
         GlStateManager._depthMask(false);
         GlStateManager._enableDepthTest();
         GlStateManager._depthFunc(GL11C.GL_LEQUAL);
@@ -100,7 +100,7 @@ final class CubeOcclusion {
         } else {
             GlStateManager._disableCull();
         }
-        GlStateManager._disableBlend();
+        GlStateManager._disableBlend(0);
         GlStateManager._glUseProgram(program);
         GL30C.glBindVertexArray(array);
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -148,13 +148,13 @@ final class CubeOcclusion {
         void end() {
             GL30C.glBindVertexArray(array);
             GlStateManager._glUseProgram(program);
-            GlStateManager._colorMask(colour[0], colour[1], colour[2], colour[3]);
+            GlStateManager._colorMask((colour[0] ? 1 : 0) | (colour[1] ? 2 : 0) | (colour[2] ? 4 : 0) | (colour[3] ? 8 : 0));
             GlStateManager._depthMask(depthMask);
             if (depthTest) GlStateManager._enableDepthTest(); else GlStateManager._disableDepthTest();
             GlStateManager._depthFunc(depthFunc);
             GL11C.glCullFace(cullFace);
             if (cull) GlStateManager._enableCull(); else GlStateManager._disableCull();
-            if (blend) GlStateManager._enableBlend(); else GlStateManager._disableBlend();
+            if (blend) GlStateManager._enableBlend(0); else GlStateManager._disableBlend(0);
         }
     }
 
