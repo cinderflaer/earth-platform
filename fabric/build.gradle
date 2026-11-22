@@ -3,12 +3,6 @@ plugins {
     id 'java'
 }
 
-// The Fabric jar is built from the same game code as the NeoForge one in ../minecraft: only the
-// loader glue in src/main/java here differs. Version, ids and Minecraft version come from there.
-def shared = new Properties()
-file('../minecraft/gradle.properties').withInputStream { shared.load(it) }
-shared.each { key, value -> if (!project.hasProperty(key)) project.ext.set(key, value) }
-
 layout.buildDirectory = file(providers.gradleProperty('earthBuildDirectory').getOrElse('build'))
 
 version = mod_version
@@ -18,8 +12,8 @@ base { archivesName = mod_id + '-fabric' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 sourceSets.main {
-    java.srcDirs = ['src/main/java', '../minecraft/src/main/java', '../geography/src/main/java']
-    resources.srcDirs = ['src/main/resources', '../minecraft/src/main/resources', '../geography/src/main/resources']
+    java.srcDirs = ['src/main/java', '../geography/src/main/java']
+    resources.srcDirs = ['src/main/resources', '../geography/src/main/resources']
 }
 
 repositories {
@@ -55,11 +49,11 @@ loom {
     }
 }
 
-// Exact, separately downloaded Iris and Sodium (Fabric builds), compile-only like on NeoForge.
+// Exact, separately downloaded Iris and Sodium (Fabric builds), compile-only.
 def fabricIrisJar = providers.gradleProperty('installedFabricIrisJar').orElse(providers.environmentVariable('EARTH_INSTALLED_FABRIC_IRIS_JAR'))
 def fabricSodiumJar = providers.gradleProperty('installedFabricSodiumJar').orElse(providers.environmentVariable('EARTH_INSTALLED_FABRIC_SODIUM_JAR'))
 
-// The build reads them by SHA-256 only, as the NeoForge build does with its own copies (docs/BUILDING.md).
+// The build reads them by SHA-256 only (docs/BUILDING.md).
 def fabricInputs = [
         (fabricIrisJar): '0ceb694040b4628bf3fa02286cfe5f0db833195669ab07f8caa4001359763eff',
         (fabricSodiumJar): '3d43c14985a4deb19c654aad3393b454cf57e1ebcbba86c4ae6a98dfc60eca2d',
@@ -115,10 +109,16 @@ dependencies {
     modImplementation "fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${forge_config_api_port_version}"
     include "fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${forge_config_api_port_version}"
 
-    // NeoForge's classpath carries these annotations; vanilla Fabric does not.
+    // Nullability annotations the game code uses; vanilla Fabric does not ship them.
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    testCompileOnly 'com.google.code.findbugs:jsr305:3.0.2'
 
-    // Same optional Bug Courier jar as the NeoForge build: compile against it, never bundle it.
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation "net.fabricmc:fabric-loader-junit:${loader_version}"
+
+    // The optional Bug Courier jar: compile against it, never bundle it.
     compileOnly files(bugCourierJar.map { file(it) })
 
     modCompileOnly files(fabricIrisJar.map { file(it) })
@@ -126,7 +126,6 @@ dependencies {
 }
 
 processResources {
-    // NeoForge's metadata template stays in ../minecraft/src/main/templates and is not a resource.
     def props = [mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
                  minecraft_version: minecraft_version, loader_version_range: loader_version_range,
                  fabric_api_version_range: fabric_api_version_range]
@@ -188,3 +187,13 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 21
 }
+
+// The unit tests compile against the Fabric Iris and Sodium jars but never run with them, and read
+// the project folder to check source files and mixin configs.
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    systemProperty 'earthplatform.test.projectDirectory', layout.projectDirectory.asFile.absolutePath
+    testLogging { events 'failed', 'skipped'; showStandardStreams = false }
+}
+configurations.testCompileOnly.extendsFrom configurations.compileOnly
+tasks.named('compileTestJava') { dependsOn verifyFabricInputs }
