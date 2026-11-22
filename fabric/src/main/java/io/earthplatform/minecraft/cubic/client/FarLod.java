@@ -164,7 +164,7 @@ public final class FarLod {
     static void beginPass() {
         projected = false;
         if (!defined || depth == 0) return;
-        var target = Minecraft.getInstance().getMainRenderTarget();
+        var target = FarGl.mainTarget();
         if (target.width != width || target.height != height) resize(target.width, target.height);
         int bound = GL11C.glGetInteger(GL30C.GL_DRAW_FRAMEBUFFER_BINDING);
         GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, framebuffer);
@@ -178,7 +178,7 @@ public final class FarLod {
         GL20C.glDrawBuffers(new int[] {GL11C.GL_NONE, GL30C.GL_COLOR_ATTACHMENT1});
         boolean[] mask = colourMask();
         GL11C.glColorMask(true, true, true, true);
-        RenderSystem.depthMask(true);
+        GlStateManager._depthMask(true);
         GL30C.glClearBufferfv(GL11C.GL_DEPTH, 0, new float[] {1.0F});
         GL30C.glClearBufferfv(GL11C.GL_COLOR, 1, new float[] {1.0F, 1.0F, 1.0F, 1.0F});
         GL11C.glColorMask(mask[0], mask[1], mask[2], mask[3]);
@@ -222,7 +222,7 @@ public final class FarLod {
      * the far shader reads, so far terrain stays behind whatever the game drew.
      */
     static void beginDraw(Matrix4fc view, double x, double y, double z) {
-        var target = Minecraft.getInstance().getMainRenderTarget();
+        var target = FarGl.mainTarget();
         if (depth == 0 || target.width != width || target.height != height) resize(target.width, target.height);
         drawnFrom = GL11C.glGetInteger(GL30C.GL_DRAW_FRAMEBUFFER_BINDING);
         int colour = attached(GL11C.glGetInteger(GL20C.GL_DRAW_BUFFER0));
@@ -240,7 +240,7 @@ public final class FarLod {
             GL30C.glFramebufferTexture2D(GL30C.GL_DRAW_FRAMEBUFFER, GL30C.GL_COLOR_ATTACHMENT0, GL11C.GL_TEXTURE_2D, colour, 0);
         }
         GL20C.glDrawBuffers(targets(true, true));
-        previousActive = GlStateManager._getActiveTexture();
+        previousActive = FarGl.activeTexture();
         bind(VANILLA_UNIT, gameDepth);
         bind(SCRATCH_UNIT, shadows);
         GlStateManager._activeTexture(previousActive);
@@ -268,7 +268,9 @@ public final class FarLod {
     private static void sun() {
         var level = Minecraft.getInstance().level;
         if (level == null) { sunUp = false; return; }
-        float day = level.getTimeOfDay(Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
+        // Since 26.x the sun's angle is an environment attribute, in degrees: the old time of day times 360.
+        float day = Minecraft.getInstance().gameRenderer.mainCamera().attributeProbe().getValue(net.minecraft.world.attribute.EnvironmentAttributes.SUN_ANGLE,
+                Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false)) / 360.0F;
         float tilt = ShaderBlocks.IRIS ? FarLodIris.sunPathRotation() : 0.0F;
         // The sky turns about the east-west axis; a pack can tilt that path about the north-south one.
         sunWorld.set(0.0F, 1.0F, 0.0F).rotateX((float) Math.toRadians(day * 360.0F))
@@ -364,7 +366,7 @@ public final class FarLod {
         boolean depthTest = GL11C.glIsEnabled(GL11C.GL_DEPTH_TEST);
         int depthFunc = GL11C.glGetInteger(GL11C.GL_DEPTH_FUNC);
         boolean depthMask = GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK);
-        int active = GlStateManager._getActiveTexture();
+        int active = FarGl.activeTexture();
         GlStateManager._glBindFramebuffer(GL30C.GL_DRAW_FRAMEBUFFER, waterFramebuffer);
         GL11C.glEnable(GL11C.GL_DEPTH_TEST);
         GL11C.glDepthFunc(GL11C.GL_ALWAYS);
@@ -545,7 +547,7 @@ public final class FarLod {
         waterDepth = attached(GL30C.GL_DEPTH_ATTACHMENT);
         if (waterFrom == 0 || waterDepth == 0) return false;
         int program = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
-        previousActive = GlStateManager._getActiveTexture();
+        previousActive = FarGl.activeTexture();
         boolean depthTest = GL11C.glIsEnabled(GL11C.GL_DEPTH_TEST);
         int depthFunc = GL11C.glGetInteger(GL11C.GL_DEPTH_FUNC);
         boolean depthMask = GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK);
@@ -657,7 +659,7 @@ public final class FarLod {
         RenderSystem.assertOnRenderThread();
         width = newWidth;
         height = newHeight;
-        int active = GlStateManager._getActiveTexture();
+        int active = FarGl.activeTexture();
         GlStateManager._activeTexture(GL13C.GL_TEXTURE0);
         int bound2d = GL11C.glGetInteger(GL11C.GL_TEXTURE_BINDING_2D);
         if (depth == 0) depth = GL11C.glGenTextures();
@@ -741,7 +743,7 @@ public final class FarLod {
         void save() {
             program = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
             framebuffer = GL11C.glGetInteger(GL30C.GL_DRAW_FRAMEBUFFER_BINDING);
-            active = GlStateManager._getActiveTexture();
+            active = FarGl.activeTexture();
             depthTest = GL11C.glIsEnabled(GL11C.GL_DEPTH_TEST);
             depthFunc = GL11C.glGetInteger(GL11C.GL_DEPTH_FUNC);
             depthMask = GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK);

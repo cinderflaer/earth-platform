@@ -9,13 +9,16 @@ import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.color.block.BlockTintSource;
+import net.minecraft.data.AtlasIds;
+import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.biome.Biome;
@@ -55,9 +58,24 @@ final class FarFaces {
             BiomeView view = new BiomeView(biome);
             int color = key.index == -2
                     ? ClientPlatform.INSTANCE.fluidTint(state.getFluidState(), view, BlockPos.ZERO)
-                    : Minecraft.getInstance().getBlockColors().getColor(state, view, BlockPos.ZERO, key.index);
+                    : colour(state, view, key.index);
             return color == -1 ? 0xFFFFFF : color & 0xFFFFFF;
         });
+    }
+
+    /** What the block's colour handler gives a tint index in a view; -1 where it has none. */
+    private static int colour(BlockState state, BiomeView view, int index) {
+        BlockTintSource source = Minecraft.getInstance().getBlockColors().getTintSource(state, index);
+        return source == null ? -1 : source.colorInWorld(state, view, BlockPos.ZERO);
+    }
+
+    /** The quads the block model's parts show on one side (null: the unculled ones), each part picked with the same seed. */
+    private static List<BakedQuad> quads(BlockStateModel model, @Nullable Direction side, RandomSource random) {
+        List<BlockStateModelPart> parts = new java.util.ArrayList<>();
+        model.collectParts(random, parts);
+        List<BakedQuad> quads = new java.util.ArrayList<>();
+        for (BlockStateModelPart part : parts) quads.addAll(part.getQuads(side));
+        return quads;
     }
 
     private Face[] bake(BlockState state) {
@@ -68,19 +86,19 @@ final class FarFaces {
             java.util.Arrays.fill(baked, face);
             return baked;
         }
-        BakedModel model = Minecraft.getInstance().getBlockRenderer().getBlockModel(state);
+        BlockStateModel model = Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(state);
         RandomSource random = RandomSource.create();
         for (Direction direction : Direction.values()) {
             random.setSeed(42L);
-            List<BakedQuad> quads = ClientPlatform.INSTANCE.quads(model, state, direction, random, null, null);
+            List<BakedQuad> quads = quads(model, direction, random);
             if (quads.isEmpty()) {
                 random.setSeed(42L);
-                quads = ClientPlatform.INSTANCE.quads(model, state, null, random, null, null).stream().filter(q -> q.getDirection() == direction).toList();
+                quads = quads(model, null, random).stream().filter(q -> q.direction() == direction).toList();
             }
             BakedQuad quad = quads.isEmpty() ? null : quads.get(0);
             baked[direction.get3DDataValue()] = quad == null
-                    ? face(ClientPlatform.INSTANCE.particleIcon(model), -1)
-                    : face(quad.getSprite(), quad.isTinted() ? quad.getTintIndex() : -1);
+                    ? face(model.particleMaterial().sprite(), -1)
+                    : face(quad.materialInfo().sprite(), quad.materialInfo().isTinted() ? quad.materialInfo().tintIndex() : -1);
         }
         return baked;
     }
@@ -90,7 +108,7 @@ final class FarFaces {
     }
 
     static TextureAtlasSprite sprite(Identifier name) {
-        return Minecraft.getInstance().getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS).getSprite(name);
+        return Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(name);
     }
 
     /** Mean ARGB of a sprite's first frame: colour over its mostly opaque pixels, alpha over all of them. */
@@ -101,10 +119,10 @@ final class FarFaces {
                 int width = sprite.contents().width(), height = sprite.contents().height();
                 long r = 0, g = 0, b = 0, n = 0, a = 0;
                 for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) {
-                    int abgr = image.getPixelRGBA(x, y);
-                    a += abgr >>> 24;
-                    if ((abgr >>> 24) < 128) continue;
-                    r += abgr & 255; g += abgr >> 8 & 255; b += abgr >> 16 & 255; n++;
+                    int argb = image.getPixel(x, y);
+                    a += argb >>> 24;
+                    if ((argb >>> 24) < 128) continue;
+                    r += argb >> 16 & 255; g += argb >> 8 & 255; b += argb & 255; n++;
                 }
                 int alpha = (int) (a / Math.max(1, (long) width * height)) << 24;
                 return n == 0 ? alpha | 0xFFFFFF : alpha | (int) (r / n) << 16 | (int) (g / n) << 8 | (int) (b / n);
@@ -119,12 +137,12 @@ final class FarFaces {
         @Override public int getBlockTint(BlockPos pos, ColorResolver resolver) {
             return biome == null ? 0xFFFFFF : resolver.getColor(biome.value(), pos.getX(), pos.getZ());
         }
-        @Override public float getShade(Direction direction, boolean shade) { return 1.0F; }
+        @Override public CardinalLighting cardinalLighting() { return CardinalLighting.DEFAULT; }
         @Override public LevelLightEngine getLightEngine() { return Minecraft.getInstance().level.getLightEngine(); }
         @Override @Nullable public BlockEntity getBlockEntity(BlockPos pos) { return null; }
         @Override public BlockState getBlockState(BlockPos pos) { return Blocks.AIR.defaultBlockState(); }
         @Override public FluidState getFluidState(BlockPos pos) { return Blocks.AIR.defaultBlockState().getFluidState(); }
         @Override public int getHeight() { return CubeWorld.MAX_Y - CubeWorld.MIN_Y + 1; }
-        @Override public int getMinBuildHeight() { return CubeWorld.MIN_Y; }
+        @Override public int getMinY() { return CubeWorld.MIN_Y; }
     }
 }

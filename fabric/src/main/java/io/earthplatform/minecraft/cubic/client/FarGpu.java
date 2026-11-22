@@ -2,7 +2,6 @@ package io.earthplatform.minecraft.cubic.client;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import io.earthplatform.minecraft.EarthPlatformMod;
 import io.earthplatform.minecraft.cubic.far.Far;
 import java.nio.FloatBuffer;
@@ -13,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL;
@@ -347,13 +345,14 @@ final class FarGpu {
         previousProgram = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
         use(program);
 
-        int atlas = Minecraft.getInstance().getTextureManager().getTexture(InventoryMenu.BLOCK_ATLAS).getId();
-        int lightmap = RenderSystem.getShaderTexture(2);
-        previousActive = GlStateManager._getActiveTexture();
-        bind2d(ATLAS_UNIT, atlas, packMode);
-        bind2d(LIGHT_UNIT, lightmap, packMode);
+        // Since 26.x the game leaves neither bound as render state: its atlas and level lightmap, with the samplers it reads them by.
+        int atlas = FarGl.blockAtlasId();
+        int lightmap = FarGl.lightmapId();
+        previousActive = FarGl.activeTexture();
+        bind2d(ATLAS_UNIT, atlas, packMode, FarGl.blockAtlasSampler());
+        bind2d(LIGHT_UNIT, lightmap, packMode, FarGl.lightmapSampler());
         blocksBound = this.ground || precise();
-        if (blocksBound) bind2d(BLOCKS_UNIT, FarBlockDepth.texture(), packMode);
+        if (blocksBound) bind2d(BLOCKS_UNIT, FarBlockDepth.texture(), packMode, 0);
         bindBuffer(LOOK_UNIT, looks.texture);
         bindBuffer(COLUMN_UNIT, columns.texture);
         GlStateManager._activeTexture(previousActive);
@@ -361,17 +360,17 @@ final class FarGpu {
         GL30C.glBindVertexArray(vao);
         // Bound again every draw, as the near cubes' are, so nothing outside can leave another there.
         if (INDEXED) GL15C.glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, indices);
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(true);
-        RenderSystem.enableCull();
+        GlStateManager._enableDepthTest();
+        GlStateManager._depthMask(true);
+        GlStateManager._enableCull();
         // A two-phase pre-pass's second pass keeps the first's clock: fades dither by it, and the shading pass must
         // meet every face at the depth the pre-pass left.
         if (phase == PREPASS && !secondPass) frozenNow = now();
         secondPass = false;
         if (phase == SHADE) {
             shadeDepthFunc = GL11C.glGetInteger(GL11C.GL_DEPTH_FUNC);
-            RenderSystem.depthMask(false);
-            RenderSystem.depthFunc(GL11C.GL_EQUAL);
+            GlStateManager._depthMask(false);
+            GlStateManager._depthFunc(GL11C.GL_EQUAL);
         }
         for (Arena arena : arenas) arena.clearDraws();
         ranges = 0;
@@ -420,7 +419,7 @@ final class FarGpu {
      * {@link FarNearSkip#GROW}, which the near-reach skip counts on.
      */
     static float grow(Matrix4f projection) {
-        int height = Math.max(1, Minecraft.getInstance().getMainRenderTarget().height);
+        int height = Math.max(1, FarGl.mainTarget().height);
         double focal = Math.abs(projection.m11());
         if (!(focal > 0.0)) return (float) FarNearSkip.GROW;
         return (float) Math.min(FarNearSkip.GROW, GROW_PIXELS * 2.0 / (focal * height));
@@ -456,10 +455,11 @@ final class FarGpu {
         GL20C.glUniform1f(program.location("earth_Grow"), grow(projection));
         if (EarthView.ENABLED) GL20C.glUniform1f(program.location("earth_Curvature"), curvature);
         if (FarAtmosphere.ENABLED) GL20C.glUniform1f(program.location("earth_Atmosphere"), atmosphere);
-        GL20C.glUniform1i(program.location("earth_FogShape"), RenderSystem.getShaderFogShape().getIndex());
-        GL20C.glUniform1f(program.location("earth_FogStart"), RenderSystem.getShaderFogStart());
-        GL20C.glUniform1f(program.location("earth_FogEnd"), RenderSystem.getShaderFogEnd());
-        float[] fog = RenderSystem.getShaderFogColor(), colour = RenderSystem.getShaderColor();
+        // The game's fog as its hook captured it (see FarFog); the shader colour is gone since 26.x, always white before.
+        GL20C.glUniform1i(program.location("earth_FogShape"), FarFog.shape());
+        GL20C.glUniform1f(program.location("earth_FogStart"), FarFog.start());
+        GL20C.glUniform1f(program.location("earth_FogEnd"), FarFog.end());
+        float[] fog = FarFog.colour(), colour = {1.0F, 1.0F, 1.0F, 1.0F};
         GL20C.glUniform4f(program.location("earth_FogColor"), fog[0], fog[1], fog[2], fog[3]);
         GL20C.glUniform4f(program.location("earth_ColorModulator"), colour[0], colour[1], colour[2], colour[3]);
         GL20C.glUniform1i(program.location("earth_Quads"), QUAD_UNIT);
@@ -571,13 +571,12 @@ final class FarGpu {
         if (blocksBound) restore2d(BLOCKS_UNIT);
         GlStateManager._activeTexture(previousActive);
         GL30C.glBindVertexArray(previousVao);
-        BufferUploader.invalidate();
         if (current.irisUniforms != null) current.irisUniforms.done();
         GlStateManager._glUseProgram(previousProgram);
         current = null;
         if (phase == SHADE) {
-            RenderSystem.depthFunc(shadeDepthFunc);
-            RenderSystem.depthMask(true);
+            GlStateManager._depthFunc(shadeDepthFunc);
+            GlStateManager._depthMask(true);
         }
     }
 
@@ -863,7 +862,7 @@ final class FarGpu {
             ranges += cull.seenRanges(i);
         }
         // Two pixels' worth of distance for the pack's jitter, with the faces' own reach past their columns.
-        int height = Math.max(1, Minecraft.getInstance().getMainRenderTarget().height);
+        int height = Math.max(1, FarGl.mainTarget().height);
         double focal = Math.abs(projection.m11());
         float share = grow(projection) * 1.5F + (focal > 0.0 ? (float) (4.0 / (focal * height)) : 0.0F);
         cull.test(new Matrix4f(projection).mul(modelView).translate(shiftX, shiftY, shiftZ), share,
@@ -963,17 +962,22 @@ final class FarGpu {
     /** After the shading pass: its culling was for that pass alone. */
     void cullDone() { if (hiddenCull != null) hiddenCull.done(); }
 
-    private void bind2d(int unit, int texture, boolean packMode) {
+    private void bind2d(int unit, int texture, boolean packMode, int sampler) {
         GlStateManager._activeTexture(GL13C.GL_TEXTURE0 + unit);
         previous2d[unit] = GL11C.glGetInteger(GL11C.GL_TEXTURE_BINDING_2D);
         GlStateManager._bindTexture(texture);
         // A pack may leave a sampler object on the unit; the atlas's own filtering is wanted.
         if (packMode) IrisSamplers.unbind(unit);
+        // Since 26.x the game filters by sampler objects it binds before each of its draws and leaves
+        // bound, and its textures carry no filtering of their own: the one the game reads this texture by.
+        else FarGl.bindSampler(unit, sampler);
     }
 
     private void restore2d(int unit) {
         GlStateManager._activeTexture(GL13C.GL_TEXTURE0 + unit);
         GlStateManager._bindTexture(previous2d[unit]);
+        // The game binds its samplers again before every draw of its own.
+        if (!packMode) FarGl.bindSampler(unit, 0);
     }
 
     private static void bindBuffer(int unit, int texture) {
@@ -1328,7 +1332,7 @@ final class FarGpu {
         }
 
         private void attach() {
-            int active = GlStateManager._getActiveTexture();
+            int active = FarGl.activeTexture();
             GlStateManager._activeTexture(GL13C.GL_TEXTURE0 + QUAD_UNIT);
             GL11C.glBindTexture(GL31C.GL_TEXTURE_BUFFER, texture);
             GL31C.glTexBuffer(GL31C.GL_TEXTURE_BUFFER, format, buffer);

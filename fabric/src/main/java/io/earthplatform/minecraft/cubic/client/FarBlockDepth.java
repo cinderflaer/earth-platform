@@ -30,7 +30,7 @@ public final class FarBlockDepth {
 
     /** Copies the bound framebuffer's depth; false when there is none it can copy, and far terrain then draws as before. */
     public static boolean copy() {
-        var target = Minecraft.getInstance().getMainRenderTarget();
+        var target = FarGl.mainTarget();
         return copy(target.width, target.height);
     }
 
@@ -54,7 +54,7 @@ public final class FarBlockDepth {
         if (scissor) GL11C.glDisable(GL11C.GL_SCISSOR_TEST);
         GlStateManager._glBindFramebuffer(GL30C.GL_READ_FRAMEBUFFER, drawn);
         if (copying) {
-            int active = GlStateManager._getActiveTexture();
+            int active = FarGl.activeTexture();
             GlStateManager._activeTexture(GL13C.GL_TEXTURE0);
             int bound = GL11C.glGetInteger(GL11C.GL_TEXTURE_BINDING_2D);
             GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, texture);
@@ -104,7 +104,7 @@ public final class FarBlockDepth {
         int pixels = stencil ? GL30C.GL_DEPTH_STENCIL : GL11C.GL_DEPTH_COMPONENT;
         int type = format == GL30C.GL_DEPTH24_STENCIL8 ? GL30C.GL_UNSIGNED_INT_24_8
                 : format == GL30C.GL_DEPTH32F_STENCIL8 ? GL30C.GL_FLOAT_32_UNSIGNED_INT_24_8_REV : GL11C.GL_FLOAT;
-        int active = GlStateManager._getActiveTexture();
+        int active = FarGl.activeTexture();
         GlStateManager._activeTexture(GL13C.GL_TEXTURE0);
         int bound = GL11C.glGetInteger(GL11C.GL_TEXTURE_BINDING_2D);
         GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, texture);

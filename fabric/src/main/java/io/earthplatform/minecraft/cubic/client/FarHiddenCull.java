@@ -161,7 +161,7 @@ final class FarHiddenCull {
         if (failed || recording.rangeCount() == 0 || faceWidth < 2 || faceHeight < 2) return false;
         if (!programs()) return false;
         int program = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
-        int active = GlStateManager._getActiveTexture();
+        int active = FarGl.activeTexture();
         Bindings bindings = Bindings.save();
         try {
             if (width != faceWidth || height != faceHeight) resize(faceWidth, faceHeight);
@@ -194,7 +194,7 @@ final class FarHiddenCull {
     int rest(FarGpu.Recording recording, int faces, int faceWidth, int faceHeight, Matrix4f viewProjection, float grow) {
         if (lastShown(recording) == 0 || faceWidth != width || faceHeight != height) return 0;
         int program = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
-        int active = GlStateManager._getActiveTexture();
+        int active = FarGl.activeTexture();
         Bindings bindings = Bindings.save();
         try {
             build(faces);

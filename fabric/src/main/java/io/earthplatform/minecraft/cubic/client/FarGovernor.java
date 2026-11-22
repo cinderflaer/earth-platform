@@ -87,7 +87,7 @@ final class FarGovernor {
         Minecraft minecraft = Minecraft.getInstance();
         // A paused or background game says nothing of how fast it plays.
         if (minecraft.isPaused() || !minecraft.isWindowActive()) { INSTANCE.reset(); return; }
-        int limit = minecraft.getWindow().getFramerateLimit();
+        int limit = minecraft.options.framerateLimit().get();
         boolean capped = minecraft.options.enableVsync().get() || limit <= HEADROOM * target;
         long now = net.minecraft.util.Util.getMillis();
         EarthConfig.sharpnessSteps(INSTANCE.frame(now, target, capped, EarthConfig.sharpnessSteps(), EarthConfig.mostSharpnessSteps()));
