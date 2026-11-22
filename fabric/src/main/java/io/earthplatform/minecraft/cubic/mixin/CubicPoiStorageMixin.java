@@ -60,7 +60,7 @@ abstract class CubicPoiStorageMixin<R> implements CubicPoiStore {
         // Changes still go through setDirty: the POI manager's override tracks how far each section is from a village.
         R made = factory.apply(() -> setDirty(section));
         storage.put(section, Optional.of(made));
-        earthplatform$columns.computeIfAbsent(ChunkPos.asLong(SectionPos.x(section), SectionPos.z(section)), k -> new IntOpenHashSet()).add(SectionPos.y(section));
+        earthplatform$columns.computeIfAbsent(ChunkPos.pack(SectionPos.x(section), SectionPos.z(section)), k -> new IntOpenHashSet()).add(SectionPos.y(section));
         result.setReturnValue(made);
     }
 
@@ -81,7 +81,7 @@ abstract class CubicPoiStorageMixin<R> implements CubicPoiStore {
     @Override public void earthplatform$forget(long section) {
         if (!earthplatform$cubicOnly(section)) return;
         storage.remove(section);
-        long chunk = ChunkPos.asLong(SectionPos.x(section), SectionPos.z(section));
+        long chunk = ChunkPos.pack(SectionPos.x(section), SectionPos.z(section));
         IntSet sections = earthplatform$columns.get(chunk);
         if (sections != null && sections.remove(SectionPos.y(section)) && sections.isEmpty()) earthplatform$columns.remove(chunk);
         setDirty(section);

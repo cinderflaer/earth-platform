@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.injection.At;
 /** Rain stays rain at real mountain heights unless the biome itself is snowy (see CubicWeather). */
 @Mixin(Level.class)
 abstract class CubicWeatherMixin {
-    @WrapOperation(method = "isRainingAt", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/level/biome/Biome;getPrecipitationAt(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/biome/Biome$Precipitation;"))
-    private Biome.Precipitation earthplatform$rain(Biome biome, BlockPos pos, Operation<Biome.Precipitation> original) {
-        return CubicWeather.precipitation((Level) (Object) this, biome, original.call(biome, pos));
+    @WrapOperation(method = "precipitationAt", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/level/biome/Biome;getPrecipitationAt(Lnet/minecraft/core/BlockPos;I)Lnet/minecraft/world/level/biome/Biome$Precipitation;"))
+    private Biome.Precipitation earthplatform$rain(Biome biome, BlockPos pos, int seaLevel, Operation<Biome.Precipitation> original) {
+        return CubicWeather.precipitation((Level) (Object) this, biome, original.call(biome, pos, seaLevel));
     }
 }

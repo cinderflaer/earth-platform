@@ -16,8 +16,8 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(WalkNodeEvaluator.class)
 abstract class CubicWalkNodesMixin extends NodeEvaluator {
     @WrapOperation(method = {"tryFindFirstNonWaterBelow", "tryFindFirstGroundNodeBelow"},
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinBuildHeight()I"))
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinY()I"))
     private int earthplatform$regionFloor(Level level, Operation<Integer> original) {
-        return CubicLevel.of(level) != null ? currentContext.level().getMinBuildHeight() : original.call(level);
+        return CubicLevel.of(level) != null ? currentContext.level().getMinY() : original.call(level);
     }
 }

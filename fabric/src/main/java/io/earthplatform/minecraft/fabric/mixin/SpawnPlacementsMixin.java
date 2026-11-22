@@ -4,7 +4,7 @@ import io.earthplatform.minecraft.fabric.EarthPlatformFabric;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.ServerLevelAccessor;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class SpawnPlacementsMixin {
     @Inject(method = "checkSpawnRules", at = @At("RETURN"), cancellable = true)
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static <T extends net.minecraft.world.entity.Entity> void earthplatform$orEarthRule(EntityType<T> type, ServerLevelAccessor level, MobSpawnType spawn,
+    private static <T extends net.minecraft.world.entity.Entity> void earthplatform$orEarthRule(EntityType<T> type, ServerLevelAccessor level, EntitySpawnReason spawn,
                                                                                                BlockPos pos, RandomSource random, CallbackInfoReturnable<Boolean> result) {
         if (result.getReturnValueZ()) return;
         SpawnPlacements.SpawnPredicate rule = EarthPlatformFabric.SPAWN_RULES.get(type);

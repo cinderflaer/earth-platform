@@ -9,7 +9,6 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -34,13 +33,13 @@ public final class SpatialCompat {
         CubeWorld cubes = cubes(chunk);
         boolean[] real = {false};
         LevelChunkSection section = CubeSections.section(chunk, index, cube -> { TOUCHED.put(cube, cubes); real[0] = true; });
-        return real[0] || cubes == null ? section : new LevelChunkSection(chunk.getLevel().registryAccess().registryOrThrow(Registries.BIOME));
+        return real[0] || cubes == null ? section : new LevelChunkSection(net.minecraft.world.level.chunk.PalettedContainerFactory.create(chunk.getLevel().registryAccess()));
     }
 
     /** The block entities of a chunk column's loaded cubes, as AE2 reads a chunk's own map. */
     public static Map<BlockPos, BlockEntity> blockEntities(CubeWorld cubes, LevelChunk chunk) {
         Map<BlockPos, BlockEntity> found = new HashMap<>();
-        int x = chunk.getPos().x, z = chunk.getPos().z;
+        int x = chunk.getPos().x(), z = chunk.getPos().z();
         for (int y = CubeWorld.MIN_Y >> 4; y <= CubeWorld.MAX_Y >> 4; y++) {
             Cube cube = cubes.cube(CubeKey.pack(x, y, z));
             if (cube != null) found.putAll(cube.blockEntities());

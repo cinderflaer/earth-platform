@@ -1,7 +1,7 @@
 package io.earthplatform.minecraft.cubic.play.client;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.renderer.RenderPipelines;
 import io.earthplatform.geography.GeoPoint;
 import io.earthplatform.minecraft.cubic.play.EarthMap;
 import io.earthplatform.minecraft.cubic.play.EarthPlaces;
@@ -15,13 +15,16 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.Items;
 import org.lwjgl.glfw.GLFW;
@@ -197,37 +200,35 @@ public final class EarthGlobeScreen extends Screen {
 
     // Drawing ----------------------------------------------------------------------------------------
 
-    @Override public void render(GuiGraphics gui, int mouseX, int mouseY, float partialTick) {
+    @Override public void extractRenderState(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick) {
         if (flight != null) {
-            renderBackground(gui, mouseX, mouseY, partialTick);
+            extractBackground(gui, mouseX, mouseY, partialTick);
             return;
         }
         if (done != null && look()) done.active = pinned && compass();
-        super.render(gui, mouseX, mouseY, partialTick);
-        gui.drawCenteredString(font, title, width / 2, 8, 0xFFFFFF);
+        super.extractRenderState(gui, mouseX, mouseY, partialTick);
+        gui.centeredText(font, title, width / 2, 8, 0xFFFFFFFF);
         Component stretch = stretch();
-        gui.drawCenteredString(font, status(), width / 2, height - (stretch != null ? 51 : 48), 0x9FD7FF);
-        if (stretch != null) gui.drawCenteredString(font, stretch, width / 2, height - 40, 0xA0A0A0);
+        gui.centeredText(font, status(), width / 2, height - (stretch != null ? 51 : 48), 0xFF9FD7FF);
+        if (stretch != null) gui.centeredText(font, stretch, width / 2, height - 40, 0xFFA0A0A0);
         if (searching()) {
             int x = search.getX(), y = search.getY() + search.getHeight() + 3;
             // Above everything else on the screen, as a tooltip is: the globe's own texts must not show through.
-            gui.pose().pushPose();
-            gui.pose().translate(0, 0, 300);
+            gui.nextStratum();
             gui.fill(x - 1, y - 1, x + SEARCH_WIDTH + 1, y + results.size() * ROW + 1, 0xFF101018);
             for (int row = 0; row < results.size(); row++) {
                 boolean over = mouseX >= x && mouseX < x + SEARCH_WIDTH && mouseY >= y + row * ROW && mouseY < y + (row + 1) * ROW;
                 if (over || row == 0) gui.fill(x, y + row * ROW, x + SEARCH_WIDTH, y + (row + 1) * ROW, over ? 0x60FFFFFF : 0x30FFFFFF);
-                gui.drawString(font, font.plainSubstrByWidth(results.get(row).label(), SEARCH_WIDTH - 6), x + 3, y + row * ROW + 2, 0xFFFFFF);
+                gui.text(font, font.plainSubstrByWidth(results.get(row).label(), SEARCH_WIDTH - 6), x + 3, y + row * ROW + 2, 0xFFFFFFFF);
             }
-            gui.pose().popPose();
             return;
         }
-        if (hover != null) gui.renderTooltip(font, Component.literal(hover.place.label()), hover.x, hover.y);
-        else if (overTarget) gui.renderTooltip(font, Component.translatable(LOOK + ".target"), mouseX, mouseY);
+        if (hover != null) gui.setTooltipForNextFrame(font, Component.literal(hover.place.label()), hover.x, hover.y);
+        else if (overTarget) gui.setTooltipForNextFrame(font, Component.translatable(LOOK + ".target"), mouseX, mouseY);
     }
 
     /** The globe, its markers and the bars behind the buttons; widgets draw over this. */
-    @Override public void renderBackground(GuiGraphics gui, int mouseX, int mouseY, float partialTick) {
+    @Override public void extractBackground(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick) {
         if (flight != null) {
             renderFlight(gui);
             return;
@@ -238,7 +239,7 @@ public final class EarthGlobeScreen extends Screen {
         boolean settled = !dragging && now - lastChange > 150;
         // Full resolution once the view rests; a coarser image keeps dragging smooth.
         if (dirty && (settled || now - lastDraw > 30)) redraw(settled);
-        if (texture != null) gui.blit(TEXTURE, 0, top, width, globeHeight(), 0, 0, textureWidth, textureHeight, textureWidth, textureHeight);
+        if (texture != null) gui.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, top, 0, 0, width, globeHeight(), textureWidth, textureHeight, textureWidth, textureHeight);
 
         double cx = width / 2.0, cy = centreY(), r = radius();
         hover = null;
@@ -251,7 +252,7 @@ public final class EarthGlobeScreen extends Screen {
             gui.fill(px - 2, py - 2, px + 2, py + 2, 0xFF000000);
             gui.fill(px - 1, py - 1, px + 1, py + 1, over ? 0xFFFFFFFF : 0xFFFFD34D);
             if (over) hover = new Hover(place, mouseX, mouseY);
-            else if (zoom >= 3) gui.drawString(font, place.name(), px + 4, py - 4, 0xFFFFE9A8);
+            else if (zoom >= 3) gui.text(font, place.name(), px + 4, py - 4, 0xFFFFE9A8);
         }
         if (keys == null || !keys.endsWith("guess")) for (EarthMap.Other other : others) {
             double[] at = project(other.latitude(), other.longitude(), cx, cy, r);
@@ -259,7 +260,7 @@ public final class EarthGlobeScreen extends Screen {
             int px = (int) Math.round(at[0]), py = (int) Math.round(at[1]);
             gui.fill(px - 3, py - 3, px + 3, py + 3, 0xFF000000);
             gui.fill(px - 2, py - 2, px + 2, py + 2, 0xFF5CFF8A);
-            gui.drawString(font, other.name(), px + 5, py - 4, 0xFFB8FFC8);
+            gui.text(font, other.name(), px + 5, py - 4, 0xFFB8FFC8);
         }
         overTarget = false;
         if (targetLat == targetLat) {
@@ -286,9 +287,9 @@ public final class EarthGlobeScreen extends Screen {
     }
 
     /** The globe of a trip in flight, over the world, with the destination pinned and a caption. */
-    private void renderFlight(GuiGraphics gui) {
+    private void renderFlight(GuiGraphicsExtractor gui) {
         flight.tick();
-        if (flight == null || minecraft.screen != this) return;
+        if (flight == null || minecraft.gui.screen() != this) return;
         if (ahead.isEmpty()) {
             List<Long> keys = new ArrayList<>(around(flight.fromLatitude(), flight.fromLongitude(), EarthFlight.NEAR_ZOOM));
             keys.addAll(around(flight.toLatitude(), flight.toLongitude(), EarthFlight.NEAR_ZOOM));
@@ -311,22 +312,19 @@ public final class EarthGlobeScreen extends Screen {
         // Coarse while moving, as when dragging; full detail once it rests on the destination.
         if (dirty) redraw(now - lastChange > 150);
         if (texture == null) return;
-        RenderSystem.enableBlend();
-        gui.setColor(1, 1, 1, alpha);
-        gui.blit(TEXTURE, 0, 0, width, height, 0, 0, textureWidth, textureHeight, textureWidth, textureHeight);
+        // Since 26.x a blit takes its tint as a colour; the globe fades in alone, its pin and caption at full strength.
+        gui.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, 0, 0, width, height, textureWidth, textureHeight, textureWidth, textureHeight, ARGB.white(alpha));
         double[] at = project(pinLat, pinLon, width / 2.0, centreY(), radius());
         if (at != null) drawPin(gui, (int) Math.round(at[0]), (int) Math.round(at[1]));
         Component caption = EarthPlaces.near(pinLat, pinLon).map(place -> Component.translatable("earthplatform.map.flying", place.label()))
                 .orElse(Component.translatable("earthplatform.map.flying", String.format(Locale.ROOT, "%.4f, %.4f", pinLat, pinLon)));
         int w = font.width(caption) + 16;
         gui.fill((width - w) / 2, height - 34, (width + w) / 2, height - 18, 0x90000000);
-        gui.drawCenteredString(font, caption, width / 2, height - 30, 0xFFFFFF);
+        gui.centeredText(font, caption, width / 2, height - 30, 0xFFFFFFFF);
         if (flight.waiting()) {
             Component note = Component.translatable("earthplatform.map.loading", ".".repeat((int) (now / 400 % 3) + 1));
-            gui.drawCenteredString(font, note, width / 2, height - 14, 0xC0FFFFFF);
+            gui.centeredText(font, note, width / 2, height - 14, 0xC0FFFFFF);
         }
-        gui.setColor(1, 1, 1, 1);
-        RenderSystem.disableBlend();
     }
 
     private record Hover(EarthPlaces.Place place, int x, int y) {}
@@ -392,33 +390,33 @@ public final class EarthGlobeScreen extends Screen {
         changed();
     }
 
-    private void drawCorners(GuiGraphics gui, long now) {
+    private void drawCorners(GuiGraphicsExtractor gui, long now) {
         int bottom = top + globeHeight();
         Component credit = Component.translatable("earthplatform.globe.credit");
-        gui.drawString(font, credit, width - font.width(credit) - 4, top + 4, 0x80FFFFFF);
+        gui.text(font, credit, width - font.width(credit) - 4, top + 4, 0x80FFFFFF);
         Component note = null;
         if (imagery.unreachable()) note = Component.translatable("earthplatform.globe.offline");
         else if (imagery.pending() > 0) note = Component.translatable("earthplatform.globe.loading", ".".repeat((int) (now / 400 % 3) + 1));
-        if (note != null) gui.drawString(font, note, 4, bottom - 10, 0xC0FFFFFF);
-        else gui.drawString(font, Component.translatable("earthplatform.globe.controls"), 4, bottom - 10, 0x80FFFFFF);
+        if (note != null) gui.text(font, note, 4, bottom - 10, 0xC0FFFFFF);
+        else gui.text(font, Component.translatable("earthplatform.globe.controls"), 4, bottom - 10, 0x80FFFFFF);
     }
 
     /** A blue dot ringed in white where the player is. */
-    private void drawHere(GuiGraphics gui, int x, int y) {
+    private void drawHere(GuiGraphicsExtractor gui, int x, int y) {
         gui.fill(x - 4, y - 4, x + 4, y + 4, 0xFF000000);
         gui.fill(x - 3, y - 3, x + 3, y + 3, 0xFFFFFFFF);
         gui.fill(x - 2, y - 2, x + 2, y + 2, 0xFF2F7DF6);
     }
 
     /** A red ring with a white heart where the player's compass points now. */
-    private void drawTarget(GuiGraphics gui, int x, int y) {
+    private void drawTarget(GuiGraphicsExtractor gui, int x, int y) {
         gui.fill(x - 5, y - 5, x + 5, y + 5, 0xFF000000);
         gui.fill(x - 4, y - 4, x + 4, y + 4, 0xFFE8322E);
         gui.fill(x - 2, y - 2, x + 2, y + 2, 0xFF000000);
         gui.fill(x - 1, y - 1, x + 1, y + 1, 0xFFFFFFFF);
     }
 
-    private void drawPin(GuiGraphics gui, int x, int y) {
+    private void drawPin(GuiGraphicsExtractor gui, int x, int y) {
         gui.fill(x - 1, y - 9, x + 2, y, 0xFF000000);
         gui.fill(x, y - 8, x + 1, y, 0xFFFFFFFF);
         gui.fill(x - 3, y - 13, x + 4, y - 6, 0xFF000000);
@@ -435,7 +433,7 @@ public final class EarthGlobeScreen extends Screen {
         int w = Math.max(1, (int) Math.round(width * perGui)), h = Math.max(1, (int) Math.round(globeHeight() * perGui));
         if (texture == null || textureWidth != w || textureHeight != h) {
             if (texture != null) texture.close();
-            texture = new DynamicTexture(w, h, false);
+            texture = new DynamicTexture(TEXTURE::toString, w, h, false);
             textureWidth = w;
             textureHeight = h;
             minecraft.getTextureManager().register(TEXTURE, texture);
@@ -458,7 +456,7 @@ public final class EarthGlobeScreen extends Screen {
                 double x = (tx + 0.5 - w / 2.0) / r;
                 double rho2 = x * x + y * y;
                 if (rho2 >= 1) {
-                    image.setPixelRGBA(tx, ty, abgr(space(Math.sqrt(rho2))));
+                    image.setPixelABGR(tx, ty, abgr(space(Math.sqrt(rho2))));
                     continue;
                 }
                 double cosAngle = Math.sqrt(1 - rho2);
@@ -491,7 +489,7 @@ public final class EarthGlobeScreen extends Screen {
                 // The edge of the globe darkens a little, and where worlds cannot start is dimmed.
                 double light = 0.62 + 0.38 * Math.sqrt(cosAngle);
                 if (Math.abs(lat) > LIMIT) light *= 0.55;
-                image.setPixelRGBA(tx, ty, abgr(GlobeImagery.scale(colour, light)));
+                image.setPixelABGR(tx, ty, abgr(GlobeImagery.scale(colour, light)));
             }
         }
         texture.upload();
@@ -583,7 +581,8 @@ public final class EarthGlobeScreen extends Screen {
 
     private boolean overGlobe(double mouseY) { return flight == null && mouseY >= top && mouseY < top + globeHeight(); }
 
-    @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x(), mouseY = event.y();
         if (flight != null) return true;
         if (searching()) {
             int x = search.getX(), y = search.getY() + search.getHeight() + 3;
@@ -593,7 +592,7 @@ public final class EarthGlobeScreen extends Screen {
                 return true;
             }
         }
-        if (super.mouseClicked(mouseX, mouseY, button)) return true;
+        if (super.mouseClicked(event, doubleClick)) return true;
         // A click off the search box gives the keys back to the globe.
         if (search != null && search.isFocused()) { setFocused(null); search.setFocused(false); }
         if (!overGlobe(mouseY)) return false;
@@ -604,8 +603,9 @@ public final class EarthGlobeScreen extends Screen {
         return true;
     }
 
-    @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (!dragging) return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    @Override public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        double mouseX = event.x(), mouseY = event.y();
+        if (!dragging) return super.mouseDragged(event, dragX, dragY);
         if (Math.abs(mouseX - pressX) + Math.abs(mouseY - pressY) > 3) moved = true;
         if (moved) {
             double r = radius();
@@ -617,11 +617,12 @@ public final class EarthGlobeScreen extends Screen {
         return true;
     }
 
-    @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (!dragging) return super.mouseReleased(mouseX, mouseY, button);
+    @Override public boolean mouseReleased(MouseButtonEvent event) {
+        double mouseX = event.x(), mouseY = event.y();
+        if (!dragging) return super.mouseReleased(event);
         dragging = false;
         changed();
-        if (!moved && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) click(mouseX, mouseY);
+        if (!moved && event.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT) click(mouseX, mouseY);
         return true;
     }
 
@@ -684,7 +685,8 @@ public final class EarthGlobeScreen extends Screen {
         changed();
     }
 
-    @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    @Override public boolean keyPressed(KeyEvent event) {
+        int keyCode = event.key();
         if (flight != null) {
             // Escape comes straight back down; the trip itself carries on.
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) flight.skip();
@@ -696,7 +698,7 @@ public final class EarthGlobeScreen extends Screen {
                 if (!results.isEmpty()) choose(results.get(0));
                 return true;
             }
-            return super.keyPressed(keyCode, scanCode, modifiers);
+            return super.keyPressed(event);
         }
         double step = Math.toDegrees(40 / radius());
         switch (keyCode) {
@@ -707,7 +709,7 @@ public final class EarthGlobeScreen extends Screen {
             case GLFW.GLFW_KEY_EQUAL, GLFW.GLFW_KEY_KP_ADD -> zoomBy(1, width / 2.0, centreY());
             case GLFW.GLFW_KEY_MINUS, GLFW.GLFW_KEY_KP_SUBTRACT -> zoomBy(-1, width / 2.0, centreY());
             case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> finish();
-            default -> { return super.keyPressed(keyCode, scanCode, modifiers); }
+            default -> { return super.keyPressed(event); }
         }
         centreLon = centreLon - 360 * Math.floor((centreLon + 180) / 360);
         changed();
@@ -724,10 +726,10 @@ public final class EarthGlobeScreen extends Screen {
         if (pinnedPlayer != null && pickedPlayer != null) pickedPlayer.accept(pinnedPlayer);
         else picked.accept(pinLat, pinLon);
         // The travel map hands over to the trip's own screen.
-        if (minecraft.screen == this) onClose();
+        if (minecraft.gui.screen() == this) onClose();
     }
 
-    @Override public void onClose() { minecraft.setScreen(parent); }
+    @Override public void onClose() { minecraft.gui.setScreen(parent); }
 
     @Override public void removed() {
         if (flight != null) flight.closed();

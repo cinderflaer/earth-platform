@@ -368,5 +368,6 @@
   "earthplatform.postcard.saved": "Postcard saved as %s. Place code %s: anyone can come here with /earth code.",
   "earthplatform.postcard.copy": "Click to copy",
   "earthplatform.postcard.failed": "The postcard could not be saved: %s",
-  "key.categories.earthplatform": "Earth Platform"
+  "key.categories.earthplatform": "Earth Platform",
+  "key.category.earthplatform.keys": "Earth Platform"
 }

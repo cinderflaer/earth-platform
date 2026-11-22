@@ -19,7 +19,6 @@ import java.util.WeakHashMap;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelHeightAccessor;
@@ -64,11 +63,13 @@ public final class AxiomCubes {
 
     // Height -------------------------------------------------------------------------------------
 
-    public static int minBuildHeight(LevelHeightAccessor of) { return cubic(of) != null ? CubeWorld.MIN_Y : of.getMinBuildHeight(); }
-    public static int maxBuildHeight(LevelHeightAccessor of) { return cubic(of) != null ? CubeWorld.MAX_Y + 1 : of.getMaxBuildHeight(); }
+    public static int minBuildHeight(LevelHeightAccessor of) { return cubic(of) != null ? CubeWorld.MIN_Y : of.getMinY(); }
+    /** The highest block Y (inclusive). */
+    public static int maxY(LevelHeightAccessor of) { return cubic(of) != null ? CubeWorld.MAX_Y : of.getMaxY(); }
     public static int height(LevelHeightAccessor of) { return cubic(of) != null ? CubeWorld.MAX_Y + 1 - CubeWorld.MIN_Y : of.getHeight(); }
-    public static int minSection(LevelHeightAccessor of) { return cubic(of) != null ? MIN_SECTION : of.getMinSection(); }
-    public static int maxSection(LevelHeightAccessor of) { return cubic(of) != null ? MAX_SECTION : of.getMaxSection(); }
+    public static int minSection(LevelHeightAccessor of) { return cubic(of) != null ? MIN_SECTION : of.getMinSectionY(); }
+    /** The highest section Y (inclusive). */
+    public static int maxSectionY(LevelHeightAccessor of) { return cubic(of) != null ? MAX_SECTION - 1 : of.getMaxSectionY(); }
     public static int sectionsCount(LevelHeightAccessor of) { return cubic(of) != null ? MAX_SECTION - MIN_SECTION : of.getSectionsCount(); }
     public static int sectionIndex(LevelHeightAccessor of, int y) { return cubic(of) != null ? (y >> 4) - MIN_SECTION : of.getSectionIndex(y); }
     public static int sectionIndexFromSectionY(LevelHeightAccessor of, int sectionY) {
@@ -89,7 +90,7 @@ public final class AxiomCubes {
     public static LevelChunkSection getSection(ChunkAccess chunk, int index) {
         CubeWorld cubes = cubic(chunk);
         if (cubes == null) return chunk.getSection(index);
-        int x = chunk.getPos().x, y = index + MIN_SECTION, z = chunk.getPos().z;
+        int x = chunk.getPos().x(), y = index + MIN_SECTION, z = chunk.getPos().z();
         Cube cube = cubes.cube(CubeKey.pack(x, y, z));
         if (cube != null) {
             OWNERS.put(cube.section, new Owner(cubes, cube));
@@ -99,7 +100,7 @@ public final class AxiomCubes {
         LAST_EMPTY_WORLD.set(cubes);
         Level level = ((LevelChunk) chunk).getLevel();
         return EMPTY.computeIfAbsent(level, l -> {
-            LevelChunkSection empty = new LevelChunkSection(l.registryAccess().registryOrThrow(Registries.BIOME));
+            LevelChunkSection empty = new LevelChunkSection(net.minecraft.world.level.chunk.PalettedContainerFactory.create(l.registryAccess()));
             EMPTIES.add(empty);
             return empty;
         });
@@ -129,7 +130,7 @@ public final class AxiomCubes {
         Map<CubeWorld, Set<Cube>> due = new IdentityHashMap<>();
         synchronized (WRITTEN) {
             WRITTEN.entrySet().removeIf(entry -> {
-                if (entry.getKey().level().isClientSide != client) return false;
+                if (entry.getKey().level().isClientSide() != client) return false;
                 due.put(entry.getKey(), entry.getValue());
                 return true;
             });

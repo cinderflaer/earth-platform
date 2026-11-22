@@ -1,13 +1,7 @@
 package io.earthplatform.minecraft.cubic.play.client;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexSorting;
 import io.earthplatform.minecraft.cubic.Cubic;
 import io.earthplatform.minecraft.cubic.client.ClientCubeWorld;
 import io.earthplatform.minecraft.cubic.client.LevelPasses;
@@ -16,14 +10,11 @@ import io.earthplatform.minecraft.platform.Loader;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.material.FogType;
-import net.minecraft.world.phys.Vec3;
 import java.util.Arrays;
 import org.joml.Matrix4f;
-import org.lwjgl.opengl.GL11;
 
 /**
  * Clouds for the Earth, where the ground is real height: vanilla's cloud deck at Y 192 would sit a
@@ -78,8 +69,8 @@ public final class EarthClouds {
      * -10.9 km) see water-tinted sky past the loaded terrain rather than a black band.
      */
     public static double horizon() {
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        if (camera.isInitialized() && camera.getFluidInCamera() == FogType.WATER) return Math.min(HORIZON_Y, camera.getPosition().y - 1);
+        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
+        if (camera.isInitialized() && camera.getFluidInCamera() == FogType.WATER) return Math.min(HORIZON_Y, camera.position().y - 1);
         return HORIZON_Y;
     }
 
@@ -92,8 +83,8 @@ public final class EarthClouds {
             NativeImage image = NativeImage.read(in);
             for (int y = 0; y < image.getHeight(); y++)
                 for (int x = 0; x < image.getWidth(); x++)
-                    image.setPixelRGBA(x, y, image.getPixelRGBA(x, y) | 0x00FFFFFF);
-            minecraft.getTextureManager().register(SOFT, new DynamicTexture(image));
+                    image.setPixel(x, y, image.getPixel(x, y) | 0x00FFFFFF);
+            minecraft.getTextureManager().register(SOFT, new DynamicTexture(SOFT::toString, image));
             softTexture = SOFT;
         } catch (java.io.IOException | RuntimeException failure) {
             // Keep vanilla's texture.
@@ -132,72 +123,18 @@ public final class EarthClouds {
         if (IRIS && net.irisshaders.iris.Iris.isPackInUseQuick()) return false;
         // This deck isn't fogged, so from under water, lava or powder snow it would show through
         // as a white speckled sheet far overhead; nothing that high can be seen from there anyway.
-        if (Minecraft.getInstance().gameRenderer.getMainCamera().getFluidInCamera() != FogType.NONE) return true;
+        if (Minecraft.getInstance().gameRenderer.mainCamera().getFluidInCamera() != FogType.NONE) return true;
         if (layered() && CloudVolume.draw(level, view, projection, partialTick, camX, camY, camZ, height)) {
             layeredDrew = true;
             layeredPass = LevelPasses.current();
             return true;
         }
 
-        double under = followGround(level);
-        double deck = Double.isNaN(under) ? SEA + height : Math.max(SEA + height, under + ABOVE_GROUND);
-        double y = deck - camY;
-        // Far enough that the faded rim sits low on the horizon, near enough to keep cells visible.
-        double radius = Math.max(8_000, 6 * Math.abs(y));
-        double drift = (level.getGameTime() + partialTick) * WIND;
-        Vec3 colour = level.getCloudColor(partialTick);
-        float r = (float) colour.x, g = (float) colour.y, b = (float) colour.z;
-
-        RenderSystem.backupProjectionMatrix();
-        RenderSystem.setProjectionMatrix(projection, VertexSorting.DISTANCE_TO_ORIGIN);
-        // The vertices carry the camera's turn (view); the game's model-view already holds it during
-        // the level's render, and applying it twice tilted the deck by the camera's pitch.
-        var modelView = RenderSystem.getModelViewStack();
-        modelView.pushMatrix();
-        modelView.identity();
-        RenderSystem.applyModelViewMatrix();
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        Identifier texture = soft();
-        RenderSystem.setShaderTexture(0, texture);
-        Minecraft.getInstance().getTextureManager().getTexture(texture).bind();
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-        RenderSystem.disableCull();
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(false);
-
-        BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-        double step = 2 * radius / GRID;
-        float[] clear = clearance(deck, camX, camZ, radius, step);
-        for (Layer layer : LAYERS) {
-            double period = 256 * CELL * layer.size, cos = Math.cos(layer.turn), sin = Math.sin(layer.turn);
-            double worldX = camX + drift, worldZ = camZ;
-            double baseU = frac((cos * worldX - sin * worldZ) / period + layer.shift), baseV = frac((sin * worldX + cos * worldZ) / period);
-            for (int i = 0; i < GRID; i++) {
-                for (int j = 0; j < GRID; j++) {
-                    double x0 = -radius + i * step, z0 = -radius + j * step;
-                    vertex(buffer, view, layer, x0, y, z0, radius, period, baseU, baseV, r, g, b, clear[i * (GRID + 1) + j]);
-                    vertex(buffer, view, layer, x0, y, z0 + step, radius, period, baseU, baseV, r, g, b, clear[i * (GRID + 1) + j + 1]);
-                    vertex(buffer, view, layer, x0 + step, y, z0 + step, radius, period, baseU, baseV, r, g, b, clear[(i + 1) * (GRID + 1) + j + 1]);
-                    vertex(buffer, view, layer, x0 + step, y, z0, radius, period, baseU, baseV, r, g, b, clear[(i + 1) * (GRID + 1) + j]);
-                }
-            }
-        }
-        BufferUploader.drawWithShader(buffer.buildOrThrow());
-
-        RenderSystem.depthMask(true);
-        RenderSystem.enableCull();
-        RenderSystem.disableBlend();
-        modelView.popMatrix();
-        RenderSystem.applyModelViewMatrix();
-        RenderSystem.restoreProjectionMatrix();
-        return true;
+        // TODO(26.2): the deck drew with RenderSystem's fixed state, the position-texture-colour ShaderInstance, Tesselator and
+        // BufferUploader, which 26.x replaced with render pipelines and render passes. Until the deck is drawn with those,
+        // vanilla's clouds draw (false); clearance, followGround, soft and vertex below are what it drew with.
+        return false;
     }
-
     /**
      * The last clearance worked out and what it was worked out from: the far columns held, the deck,
      * and the camera's place. Standing still it stays as it is, and working it out again from tens

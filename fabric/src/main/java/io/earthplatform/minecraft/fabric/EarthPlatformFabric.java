@@ -1,7 +1,7 @@
 package io.earthplatform.minecraft.fabric;
 
-import fuzs.forgeconfigapiport.fabric.api.neoforge.v4.NeoForgeConfigRegistry;
-import fuzs.forgeconfigapiport.fabric.api.neoforge.v4.NeoForgeModConfigEvents;
+import fuzs.forgeconfigapiport.fabric.api.v5.ConfigRegistry;
+import fuzs.forgeconfigapiport.fabric.api.v5.ModConfigEvents;
 import io.earthplatform.minecraft.EarthPlatformMod;
 import io.earthplatform.minecraft.cubic.CubicEvents;
 import io.earthplatform.minecraft.cubic.CubicPoiClaims;
@@ -23,13 +23,13 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.Identifier;
@@ -54,10 +54,10 @@ public final class EarthPlatformFabric implements ModInitializer {
         // Classes that read engine flags once may initialize before the settings files load, so the flags'
         // settings are read here, before anything else of the mod runs (see EngineToggles).
         EngineToggles.preload(FabricLoader.getInstance().getConfigDir());
-        NeoForgeModConfigEvents.loading(EarthPlatformMod.MOD_ID).register(EarthConfig::apply);
-        NeoForgeModConfigEvents.reloading(EarthPlatformMod.MOD_ID).register(EarthConfig::apply);
-        NeoForgeConfigRegistry.INSTANCE.register(EarthPlatformMod.MOD_ID, ModConfig.Type.CLIENT, EarthConfig.CLIENT_SPEC);
-        NeoForgeConfigRegistry.INSTANCE.register(EarthPlatformMod.MOD_ID, ModConfig.Type.COMMON, EarthConfig.COMMON_SPEC);
+        ModConfigEvents.loading(EarthPlatformMod.MOD_ID).register(EarthConfig::apply);
+        ModConfigEvents.reloading(EarthPlatformMod.MOD_ID).register(EarthConfig::apply);
+        ConfigRegistry.INSTANCE.register(EarthPlatformMod.MOD_ID, ModConfig.Type.CLIENT, EarthConfig.CLIENT_SPEC);
+        ConfigRegistry.INSTANCE.register(EarthPlatformMod.MOD_ID, ModConfig.Type.COMMON, EarthConfig.COMMON_SPEC);
         EarthConfig.setup();
 
         CubePayloads.register(new FabricPayloads());
@@ -68,9 +68,9 @@ public final class EarthPlatformFabric implements ModInitializer {
         });
 
         // Levels
-        ServerWorldEvents.LOAD.register((server, level) -> CubicEvents.load(level));
-        ServerWorldEvents.UNLOAD.register((server, level) -> CubicEvents.unload(level));
-        ServerTickEvents.END_WORLD_TICK.register(level -> {
+        ServerLevelEvents.LOAD.register((server, level) -> CubicEvents.load(level));
+        ServerLevelEvents.UNLOAD.register((server, level) -> CubicEvents.unload(level));
+        ServerTickEvents.END_LEVEL_TICK.register(level -> {
             CubicEvents.tick(level);
             SableWind.tick(level);
         });
@@ -119,7 +119,7 @@ public final class EarthPlatformFabric implements ModInitializer {
             EarthWorlds.respawned(player);
             EarthCompass.respawned(player);
         });
-        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, from, to) -> {
+        ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, from, to) -> {
             CubicTravel.changedDimension(player, from.dimension(), to.dimension());
             EarthWorlds.changedDimension(player);
             EarthCompass.changedDimension(player);

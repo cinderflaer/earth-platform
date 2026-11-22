@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.At;
  */
 @Mixin(FogRenderer.class)
 abstract class EarthFogColourMixin {
-    @ModifyExpressionValue(method = "setupColor", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientLevel;getMinBuildHeight()I"))
-    private static int earthplatform$deepFloor(int floor, @Local(argsOnly = true) ClientLevel level) {
+    @ModifyExpressionValue(method = "computeFogColor", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientLevel;getMinY()I"))
+    private int earthplatform$deepFloor(int floor, @Local(argsOnly = true) ClientLevel level) {
         // Never raises a floor another fix already lowered (CubicVoidFogMixin moves it to the cubic world's true bottom).
         return EarthClouds.earthSky(level) ? Math.min(floor, (int) EarthClouds.HORIZON_Y) : floor;
     }

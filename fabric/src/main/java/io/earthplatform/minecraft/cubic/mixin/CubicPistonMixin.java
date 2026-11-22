@@ -15,13 +15,13 @@ import org.spongepowered.asm.mixin.injection.At;
  */
 @Mixin(PistonBaseBlock.class)
 abstract class CubicPistonMixin {
-    @WrapOperation(method = "isPushable", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinBuildHeight()I"))
+    @WrapOperation(method = "isPushable", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinY()I"))
     private static int earthplatform$cubicBottom(Level level, Operation<Integer> original) {
         return CubicLevel.of(level) != null ? CubeWorld.MIN_Y : original.call(level);
     }
 
-    @WrapOperation(method = "isPushable", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMaxBuildHeight()I"))
+    @WrapOperation(method = "isPushable", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMaxY()I"))
     private static int earthplatform$cubicTop(Level level, Operation<Integer> original) {
-        return CubicLevel.of(level) != null ? CubeWorld.MAX_Y + 1 : original.call(level);
+        return CubicLevel.of(level) != null ? CubeWorld.MAX_Y : original.call(level);
     }
 }

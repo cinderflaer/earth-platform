@@ -29,7 +29,7 @@ abstract class CubicCurrentMoveMixin {
             target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;isSingleplayerOwner()Z"))
     private boolean earthplatform$currentSpeed(ServerGamePacketListenerImpl self, Operation<Boolean> original,
                                                @Local(argsOnly = true) ServerboundMoveVehiclePacket packet) {
-        return original.call(self) || OceanCurrent.currentMove(player.getRootVehicle(), packet.getX(), packet.getY(), packet.getZ());
+        return original.call(self) || OceanCurrent.currentMove(player.getRootVehicle(), packet.position().x, packet.position().y, packet.position().z);
     }
 
     @Inject(method = "handleMoveVehicle", at = @At(value = "INVOKE",

@@ -18,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.At;
  */
 @Mixin({LandRandomPos.class, HoverRandomPos.class, AirAndWaterRandomPos.class})
 abstract class CubicRandomPosMixin {
-    @WrapOperation(method = "*", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMaxBuildHeight()I"))
+    @WrapOperation(method = "*", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMaxY()I"))
     private static int earthplatform$cubicTop(Level level, Operation<Integer> original) {
-        return CubicLevel.of(level) != null ? CubeWorld.MAX_Y + 1 : original.call(level);
+        return CubicLevel.of(level) != null ? CubeWorld.MAX_Y : original.call(level);
     }
 }

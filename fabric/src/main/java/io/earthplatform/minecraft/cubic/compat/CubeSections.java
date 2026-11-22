@@ -8,7 +8,6 @@ import io.earthplatform.minecraft.cubic.ServerCubeWorld;
 import io.earthplatform.minecraft.cubic.jet.JetStream;
 import javax.annotation.Nullable;
 import java.util.function.Consumer;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -38,10 +37,10 @@ public final class CubeSections {
         Level level = chunk.getLevel();
         CubeWorld cubes = CubicLevel.at(level, chunk.getPos().getMinBlockX(), chunk.getPos().getMinBlockZ());
         if (cubes == null) {
-            int own = sectionY - chunk.getMinSection();
+            int own = sectionY - chunk.getMinSectionY();
             return own >= 0 && own < chunk.getSectionsCount() ? chunk.getSection(own) : empty(level);
         }
-        int x = chunk.getPos().x, z = chunk.getPos().z;
+        int x = chunk.getPos().x(), z = chunk.getPos().z();
         Cube cube = cubes.cube(CubeKey.pack(x, sectionY, z));
         // Nothing generated reaches the clear sky, so there a missing cube is just air: no need to
         // build it for a ship racing along the jet stream.
@@ -55,7 +54,7 @@ public final class CubeSections {
 
     private static LevelChunkSection empty(Level level) {
         LevelChunkSection section = empty;
-        if (section == null) empty = section = new LevelChunkSection(level.registryAccess().registryOrThrow(Registries.BIOME));
+        if (section == null) empty = section = new LevelChunkSection(net.minecraft.world.level.chunk.PalettedContainerFactory.create(level.registryAccess()));
         return section;
     }
 }

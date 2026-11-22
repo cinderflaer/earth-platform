@@ -25,7 +25,7 @@ abstract class CubicSpawnerMixin {
                                                         CallbackInfo info) {
         if (!(CubicLevel.of(level) instanceof ServerCubeWorld cubes)) return;
         info.cancel();
-        BlockPos pos = cubes.spawnCandidate(chunk.getPos(), level.random);
+        BlockPos pos = cubes.spawnCandidate(chunk.getPos(), level.getRandom());
         if (pos != null) NaturalSpawner.spawnCategoryForPosition(category, level, chunk, pos, filter, callback);
     }
 }

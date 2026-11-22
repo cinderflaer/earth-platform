@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 /** Sand, gravel and suspicious blocks fall at any cubic height, below the carrier's floor too. */
 @Mixin({FallingBlock.class, BrushableBlock.class})
 abstract class CubicFallingBlockMixin {
-    @WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getMinBuildHeight()I"))
+    @WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getMinY()I"))
     private int earthplatform$cubicBottom(ServerLevel level, Operation<Integer> original) {
         return CubicLevel.of(level) != null ? CubeWorld.MIN_Y : original.call(level);
     }

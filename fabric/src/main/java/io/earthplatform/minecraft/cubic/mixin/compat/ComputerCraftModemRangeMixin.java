@@ -21,17 +21,18 @@ import org.spongepowered.asm.mixin.injection.At;
 @Pseudo
 @Mixin(targets = "dan200.computercraft.shared.peripheral.modem.wireless.WirelessModemPeripheral", remap = false)
 abstract class ComputerCraftModemRangeMixin {
-    /** The Overworld's build top, where vanilla worlds give a modem its full high-altitude range. */
+    /** The Overworld's build top (exclusive), where vanilla worlds give a modem its full high-altitude range. */
     @Unique private static final int OVERWORLD_TOP = 320;
 
     /**
      * The top the range is measured against: the Overworld's, or just above the modem when it is
-     * higher, which makes the range come out at exactly the high-altitude range.
+     * higher, which makes the range come out at exactly the high-altitude range. Since 1.21.2 the
+     * level's top is its highest block (getMaxY), one under the old exclusive build height.
      */
     @WrapOperation(method = "getRange", require = 0,
-            at = @At(value = "INVOKE", remap = true, target = "Lnet/minecraft/world/level/Level;getMaxBuildHeight()I"))
+            at = @At(value = "INVOKE", remap = true, target = "Lnet/minecraft/world/level/Level;getMaxY()I"))
     private int earthplatform$top(Level level, Operation<Integer> original, @Local Vec3 position) {
         if (CubicLevel.at(level, (int) Math.floor(position.x), (int) Math.floor(position.z)) == null) return original.call(level);
-        return Math.max(OVERWORLD_TOP, (int) Math.ceil(position.y) + 1);
+        return Math.max(OVERWORLD_TOP, (int) Math.ceil(position.y) + 1) - 1;
     }
 }

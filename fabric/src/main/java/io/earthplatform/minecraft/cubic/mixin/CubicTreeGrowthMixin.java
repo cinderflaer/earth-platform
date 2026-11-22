@@ -13,13 +13,13 @@ import org.spongepowered.asm.mixin.injection.At;
 /** A sapling grows into a tree at any cubic height; the tree found no room outside the 16-block carrier. */
 @Mixin(TreeFeature.class)
 abstract class CubicTreeGrowthMixin {
-    @WrapOperation(method = "doPlace", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/WorldGenLevel;getMinBuildHeight()I"))
+    @WrapOperation(method = "doPlace", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/WorldGenLevel;getMinY()I"))
     private int earthplatform$cubicBottom(WorldGenLevel level, Operation<Integer> original) {
         return level instanceof Level live && CubicLevel.of(live) != null ? CubeWorld.MIN_Y : original.call(level);
     }
 
-    @WrapOperation(method = "doPlace", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/WorldGenLevel;getMaxBuildHeight()I"))
+    @WrapOperation(method = "doPlace", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/WorldGenLevel;getMaxY()I"))
     private int earthplatform$cubicTop(WorldGenLevel level, Operation<Integer> original) {
-        return level instanceof Level live && CubicLevel.of(live) != null ? CubeWorld.MAX_Y + 1 : original.call(level);
+        return level instanceof Level live && CubicLevel.of(live) != null ? CubeWorld.MAX_Y : original.call(level);
     }
 }

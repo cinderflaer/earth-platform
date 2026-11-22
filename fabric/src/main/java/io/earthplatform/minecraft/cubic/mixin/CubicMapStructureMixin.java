@@ -22,7 +22,7 @@ abstract class CubicMapStructureMixin {
     private void earthplatform$cubicStructure(TagKey<Structure> tag, BlockPos pos, int radius, boolean skipKnown, CallbackInfoReturnable<BlockPos> result) {
         ServerLevel level = (ServerLevel) (Object) this;
         if (!(CubicLevel.of(level) instanceof ServerCubeWorld cubes)) return;
-        var structures = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        var structures = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
         result.setReturnValue(cubes.generator().locate(s -> structures.wrapAsHolder(s).is(tag), pos.getX(), pos.getZ(), radius));
     }
 }

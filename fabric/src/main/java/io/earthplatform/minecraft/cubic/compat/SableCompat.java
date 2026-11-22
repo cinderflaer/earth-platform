@@ -107,7 +107,7 @@ public final class SableCompat {
      * Sable's own check stops. Below it, and in other levels, Sable answers.
      */
     public static boolean highShade(Level level, BlockPos pos) {
-        if (!LOADED || !Cubic.isCubic(level.dimension()) || pos.getY() < level.getMaxBuildHeight()) return false;
+        if (!LOADED || !Cubic.isCubic(level.dimension()) || pos.getY() <= level.getMaxY()) return false;
         if (!shadeTried) {
             shadeTried = true;
             try {

@@ -68,7 +68,7 @@ abstract class CubicPathRegionMixin {
         if (earthplatform$cubic) result.setReturnValue(level);
     }
 
-    @Inject(method = "getMinBuildHeight", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getMinY", at = @At("HEAD"), cancellable = true)
     private void earthplatform$cubeMin(CallbackInfoReturnable<Integer> result) {
         if (earthplatform$cubic) result.setReturnValue(earthplatform$minY);
     }

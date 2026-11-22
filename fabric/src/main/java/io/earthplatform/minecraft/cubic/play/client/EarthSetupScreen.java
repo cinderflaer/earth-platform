@@ -7,13 +7,14 @@ import io.earthplatform.minecraft.cubic.play.EarthWorlds;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.RandomSource;
 
@@ -80,7 +81,7 @@ public final class EarthSetupScreen extends Screen {
         double[] at = point().orElse(new double[]{EarthPlaces.YOSEMITE.latitude(), EarthPlaces.YOSEMITE.longitude()});
         kept = at;
         keptImagery = imagery.getValue();
-        minecraft.setScreen(new EarthGlobeScreen(this, at[0], at[1], (lat, lon) -> kept = new double[]{lat, lon}));
+        minecraft.gui.setScreen(new EarthGlobeScreen(this, at[0], at[1], (lat, lon) -> kept = new double[]{lat, lon}));
     }
 
     private void select(EarthPlaces.Place place) {
@@ -129,7 +130,7 @@ public final class EarthSetupScreen extends Screen {
         });
     }
 
-    @Override public void onClose() { minecraft.setScreen(parent); }
+    @Override public void onClose() { minecraft.gui.setScreen(parent); }
 
     private String townFor = "", town = "";
 
@@ -144,15 +145,15 @@ public final class EarthSetupScreen extends Screen {
         return town;
     }
 
-    @Override public void render(GuiGraphics gui, int mouseX, int mouseY, float partialTick) {
-        super.render(gui, mouseX, mouseY, partialTick);
-        gui.drawCenteredString(font, title, width / 2, 12, 0xFFFFFF);
+    @Override public void extractRenderState(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(gui, mouseX, mouseY, partialTick);
+        gui.centeredText(font, title, width / 2, 12, 0xFFFFFFFF);
         int lineY = 26;
         for (var line : font.split(Component.translatable("earthplatform.setup.hint"), width - 40)) {
-            gui.drawCenteredString(font, line, width / 2, lineY, 0xA0A0A0);
+            gui.centeredText(font, line, width / 2, lineY, 0xFFA0A0A0);
             lineY += 10;
         }
-        if (!done.active) gui.drawCenteredString(font, Component.translatable("earthplatform.setup.invalid"), width / 2, height - 48, 0xFF7777);
+        if (!done.active) gui.centeredText(font, Component.translatable("earthplatform.setup.invalid"), width / 2, height - 48, 0xFFFF7777);
         else {
             var selected = list.getSelected();
             String town = selected != null ? "" : townAt(latitude.getValue().trim(), longitude.getValue().trim());
@@ -164,8 +165,8 @@ public final class EarthSetupScreen extends Screen {
                 double at = selected != null ? selected.place.latitude() : Double.parseDouble(latitude.getValue().trim());
                 if (Math.abs(at) <= 80) stretch = EarthPlayClient.stretch(0, at);
             } catch (NumberFormatException unreadable) {}
-            gui.drawCenteredString(font, where, width / 2, height - (stretch != null ? 51 : 48), 0x9FD7FF);
-            if (stretch != null) gui.drawCenteredString(font, stretch, width / 2, height - 40, 0xA0A0A0);
+            gui.centeredText(font, where, width / 2, height - (stretch != null ? 51 : 48), 0xFF9FD7FF);
+            if (stretch != null) gui.centeredText(font, stretch, width / 2, height - 40, 0xFFA0A0A0);
         }
     }
 
@@ -189,12 +190,13 @@ public final class EarthSetupScreen extends Screen {
 
         PlaceEntry(EarthPlaces.Place place) { this.place = place; }
 
-        @Override public void render(GuiGraphics gui, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovering, float partialTick) {
-            gui.drawString(font, place.name(), left + 4, top + 3, 0xFFFFFF);
-            gui.drawString(font, place.region(), left + 8 + font.width(place.name()), top + 3, 0x9A9A9A);
+        @Override public void extractContent(GuiGraphicsExtractor gui, int mouseX, int mouseY, boolean hovering, float partialTick) {
+            int left = getContentX(), top = getContentY();
+            gui.text(font, place.name(), left + 4, top + 3, 0xFFFFFFFF);
+            gui.text(font, place.region(), left + 8 + font.width(place.name()), top + 3, 0xFF9A9A9A);
         }
 
-        @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
             select(place);
             return true;
         }
