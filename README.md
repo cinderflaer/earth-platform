@@ -25,7 +25,7 @@ There are no cities: built-up land becomes the wild land around it. Vanilla vill
 
 ## Get started
 
-1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for Minecraft 1.21.1 and [Fabric API](https://modrinth.com/mod/fabric-api).
+1. Install Java 25, then [Fabric Loader](https://fabricmc.net/use/installer/) 0.20.1 or newer for Minecraft 26.2 and [Fabric API](https://modrinth.com/mod/fabric-api) 0.161.0+26.2 or newer.
 2. Download the newest Earth Platform jar from [Releases](https://github.com/pirut/earth-platform/releases/latest) (`earthplatform-fabric-…`) and put it in your `mods` folder. Give the game at least 4 GB of memory, or at least 6 GB with shaders such as Photon.
 3. Singleplayer → Create New World. The world type is already **Earth**; press **Customize** to choose where you start from a list of famous places, a globe, or any latitude and longitude.
 

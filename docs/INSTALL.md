@@ -2,15 +2,16 @@
 
 ## What you need
 
-- Minecraft: Java Edition **1.21.1**
-- **Fabric Loader 0.16.14** or newer with **Fabric API** 0.116 or newer
+- Minecraft: Java Edition **26.2**, on Fabric only
+- **Java 25**
+- **Fabric Loader 0.20.1** or newer with **Fabric API** 0.161.0+26.2 or newer
 - At least **4 GB** of memory for the game; at least **6 GB** if you use shaders such as Photon or raise the far terrain detail (on an M4 Pro Mac with Photon, 4 GB gave 8 to 18 fps where 6 GB gave 36 to 60)
 - An internet connection the first time you visit each place
 - A few GB of free disk space for downloaded Earth data (the limit is a setting)
 
 ## The quick way: an install pack
 
-Each release comes with a pack file, `earth-platform-fabric-<build>.mrpack`. The pack sets up Minecraft 1.21.1, Fabric Loader, Fabric API, Earth Platform, Sodium, Iris and the Photon shader pack in one step, with Photon switched on.
+Each release comes with a pack file, `earth-platform-fabric-<build>.mrpack`. The pack sets up Minecraft 26.2, Fabric Loader, Fabric API, Earth Platform, Sodium, Iris and the Photon shader pack in one step, with Photon switched on.
 
 1. Download the file from the [latest release](https://github.com/pirut/earth-platform/releases/latest).
 2. Open it with a launcher that reads Modrinth packs: in the Modrinth App, **Add instance → From file**; in Prism Launcher, **Add Instance → Import** (or drag the file onto the window); in ATLauncher, **Import**.
@@ -20,27 +21,27 @@ The pack holds the Earth Platform jar itself. Fabric API, Sodium, Iris and Photo
 
 ## Install
 
-1. Run the [Fabric installer](https://fabricmc.net/use/installer/) for Minecraft 1.21.1 and choose **Client**, or make a Fabric 1.21.1 instance in Prism, the Modrinth App or MultiMC.
+1. Run the [Fabric installer](https://fabricmc.net/use/installer/) for Minecraft 26.2 and choose **Client**, or make a Fabric 26.2 instance in Prism, the Modrinth App or MultiMC. Use Java 25 for the profile.
 2. Open the Minecraft Launcher. Under **Installations**, edit the new Fabric profile, open **More options** and change `-Xmx2G` in **JVM arguments** to `-Xmx4G` (or more).
 3. Start the profile once so it creates its folders, then quit.
-4. Put [Fabric API](https://modrinth.com/mod/fabric-api) (0.116 or newer for 1.21.1) and the Earth Platform jar (`earthplatform-fabric-<version>.jar` on the Releases page) into the `mods` folder of your game directory:
+4. Put [Fabric API](https://modrinth.com/mod/fabric-api) (0.161.0+26.2 or newer) and the Earth Platform jar (`earthplatform-fabric-<version>.jar` on the Releases page) into the `mods` folder of your game directory:
    - Windows: `%APPDATA%\.minecraft\mods`
    - macOS: `~/Library/Application Support/minecraft/mods`
    - Linux: `~/.minecraft/mods`
 5. Start the game. Singleplayer → Create New World: the world type is already **Earth**. Press **Customize** to pick a starting place.
 
-Other launchers (Prism, Modrinth App, CurseForge App, MultiMC): make a Fabric 1.21.1 instance, add Fabric API and the jar, and set the memory to 4 GB or more (6 GB or more with shaders). Prism defaults to 4 GB, so raise it if you use Photon.
+Other launchers (Prism, Modrinth App, CurseForge App, MultiMC): make a Fabric 26.2 instance on Java 25, add Fabric API and the jar, and set the memory to 4 GB or more (6 GB or more with shaders). Prism defaults to 4 GB, so raise it if you use Photon.
 
 The settings screen is under Options → Video Settings → Earth Platform with Sodium, or in [Mod Menu](https://modrinth.com/mod/modmenu) if you have it.
 
 ## Shaders (optional)
 
-Earth Platform is tested with this set. Iris must be 1.8.14 or a later 1.8 release and Sodium 0.8.12 or a later 0.8 release; the game refuses to start with an older version or a new major version of either.
+Earth Platform is built and tested against Iris 1.11.4 and Sodium 0.9.2, the builds for Minecraft 26.2. Other versions of either may not work.
 
 | Project | Version | Goes in |
 | --- | --- | --- |
-| [Sodium](https://modrinth.com/mod/sodium/version/mc1.21.1-0.8.13-fabric) | 0.8.13 for Fabric 1.21.1 | `mods` |
-| [Iris](https://modrinth.com/mod/iris/version/1.8.14-beta.1%2B1.21.1-fabric) | 1.8.14-beta.1 for Fabric 1.21.1 | `mods` |
+| [Sodium](https://modrinth.com/mod/sodium) | 0.9.2 for Fabric 26.2 | `mods` |
+| [Iris](https://modrinth.com/mod/iris) | 1.11.4 for Fabric 26.2 | `mods` |
 | [Photon](https://modrinth.com/shader/photon-shader/version/v1.3b) | v1.3b | `shaderpacks` (leave it zipped) |
 
 Choose Photon under Options → Video Settings → Shader Packs. Press **K** to turn shaders off and on.
@@ -65,7 +66,7 @@ For other mods, see [Which other mods work?](FAQ.md#which-other-mods-work) in th
 
 ## Dedicated servers
 
-1. Run the [Fabric installer](https://fabricmc.net/use/installer/) for Minecraft 1.21.1 with **Server**.
+1. Run the [Fabric installer](https://fabricmc.net/use/installer/) for Minecraft 26.2 with **Server**, on Java 25.
 2. Put Fabric API and the Earth Platform jar in the server's `mods` folder.
 3. Before the world is first created, set `level-type=earthplatform\:earth` in `server.properties`.
 4. Optionally set `defaultHome` in `config/earthplatform-common.toml` to a place id from `/earth places` or to `latitude,longitude`.

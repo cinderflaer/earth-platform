@@ -14,7 +14,7 @@ Security problems go to the private form on the [Security tab](https://github.co
 
 ## Changing the code
 
-- Build and test as described in [docs/BUILDING.md](docs/BUILDING.md): JDK 21, Gradle 9.5 or newer, and three checked files (Iris, Sodium, Bug Courier) that the build uses but never bundles.
+- Build and test as described in [docs/BUILDING.md](docs/BUILDING.md): JDK 25, Gradle 9.8.2, and three checked files (Iris, Sodium, Bug Courier) that the build uses but never bundles.
 - Keep pull requests to one change, and say what a player sees before and after.
 - Terrain fixes should be rules that work everywhere (from elevation, land cover, climate, slope and so on), not lists of hand-placed spots.
 - The mod must keep working with **stock, unmodified** Photon. Fixes go in the mod, not in a shader pack.

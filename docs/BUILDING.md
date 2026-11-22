@@ -4,18 +4,20 @@ The mod is one Gradle project in `fabric/`, which builds the Fabric jar. It also
 
 ## What you need
 
-- JDK 21. Set `JAVA_HOME` to it.
-- Gradle 9.5 or newer (CI uses 9.8.2), through the wrapper in `fabric/` or your own install. A fresh clone has no `gradle-wrapper.jar` (the `*.jar` ignore rule catches it), so run `gradle wrapper` once in `fabric/` or call an installed Gradle directly.
-- Network access to Maven Central, the Fabric and Parchment maven hosts, and Mojang's download hosts. Gradle fetches Minecraft 1.21.1 and the Fabric toolchain.
+- JDK 25, needed to build and to run. Set `JAVA_HOME` to it.
+- Gradle 9.8.2 (CI uses the same version), through the wrapper in `fabric/` or your own install. A fresh clone has no `gradle-wrapper.jar` (the `*.jar` ignore rule catches it), so run `gradle wrapper` once in `fabric/` or call an installed Gradle directly.
+- The Fabric Loom plugin (`net.fabricmc.fabric-loom`, 1.19.x), which the build applies.
+- No mappings to download: Minecraft 26.2 uses Mojang's names directly, so there is no Parchment.
+- Network access to Maven Central, the Fabric maven host, and Mojang's download hosts. Gradle fetches Minecraft 26.2 and the Fabric toolchain.
 - Three files you download yourself, because the mod builds against them but never bundles them. Every build checks their SHA-256 first:
 
 | Environment variable | File | SHA-256 |
 | --- | --- | --- |
-| `EARTH_INSTALLED_FABRIC_IRIS_JAR` | [iris-fabric-1.8.14-beta.1+mc1.21.1.jar](https://cdn.modrinth.com/data/YL57xq9U/versions/bAo1Qhte/iris-fabric-1.8.14-beta.1%2Bmc1.21.1.jar) | `0ceb694040b4628bf3fa02286cfe5f0db833195669ab07f8caa4001359763eff` |
-| `EARTH_INSTALLED_FABRIC_SODIUM_JAR` | [sodium-fabric-0.8.13+mc1.21.1.jar](https://cdn.modrinth.com/data/AANobbMI/versions/SMxNOGZ6/sodium-fabric-0.8.13%2Bmc1.21.1.jar) | `3d43c14985a4deb19c654aad3393b454cf57e1ebcbba86c4ae6a98dfc60eca2d` |
+| `EARTH_INSTALLED_FABRIC_IRIS_JAR` | [iris-fabric-1.11.4+mc26.2.jar](https://cdn.modrinth.com/data/YL57xq9U/versions/gxZWWnKH/iris-fabric-1.11.4%2Bmc26.2.jar) | `f1f7ab57c974d193ba33aa285864a0ded949216f402116fceaf4dc7739b4dd7c` |
+| `EARTH_INSTALLED_FABRIC_SODIUM_JAR` | [sodium-fabric-0.9.2+mc26.2.jar](https://cdn.modrinth.com/data/AANobbMI/versions/xJZxADzI/sodium-fabric-0.9.2%2Bmc26.2.jar) | `16a5e91db49750f8c046ecca3b8f2af5a28ea6f9b6581b42f123ca8fda20864f` |
 | `EARTH_BUG_COURIER_FABRIC_JAR` | [bugcourier-fabric-1.21.1-0.1.0.jar](https://github.com/pirut/mc-mods/releases/download/bug-courier-v0.1.0/bugcourier-fabric-1.21.1-0.1.0.jar) | `d082b37978957872c2ef681660c6ce069f4964a31d8e8d444c5f548c484e85ab` |
 
-Set each variable to the file's absolute path, or pass the same paths as `-PinstalledFabricIrisJar=`, `-PinstalledFabricSodiumJar=` and `-PbugCourierJar=`. Bug Courier is compile-only: the jar is not bundled, and the game runs without it.
+Set each variable to the file's absolute path, or pass the same paths as `-PinstalledFabricIrisJar=`, `-PinstalledFabricSodiumJar=` and `-PbugCourierJar=`. Bug Courier is compile-only: the jar is not bundled, and the game runs without it. It stays the 1.21.1 jar.
 
 ## Build and test
 
@@ -33,11 +35,11 @@ Headless checks, with `EARTH_BUG_COURIER_FABRIC_JAR` set: `runServer` boots a de
 
 ## Try it in game
 
-Install the jar, Fabric API and Fabric Loader 0.16.14 or newer into a Minecraft 1.21.1 instance and create a new Earth world. Use a fresh world after any change to terrain generation, because a world keeps the data choices it was made with. Downloaded Earth data lands in `earthplatform/cache` inside the game folder.
+Install the jar, Fabric API 0.161.0+26.2 or newer and Fabric Loader 0.20.1 or newer into a Minecraft 26.2 instance (Java 25) and create a new Earth world. Use a fresh world after any change to terrain generation, because a world keeps the data choices it was made with. Downloaded Earth data lands in `earthplatform/cache` inside the game folder.
 
 ## Loader code
 
-Shared code reaches the loader only through `io.earthplatform.minecraft.platform` (`Loader`, `Platform`, `ClientPlatform`, `Payloads`), which the Fabric side fills in through `META-INF/services`. The Fabric side lives in `fabric/src/main/java/io/earthplatform/minecraft/fabric` (Fabric API callbacks and the mixins for the hooks, in `earthplatform.fabric.mixins.json`). Config files use NeoForge's config classes, through [Forge Config API Port](https://github.com/Fuzss/forgeconfigapiport) bundled in the jar. Shared mixins that target a lambda list both its NeoForge name and its Fabric intermediary name, and build against the oldest Fabric Loader the jar accepts (newer Mixin versions write annotations older loaders can't read).
+Shared code reaches the loader only through `io.earthplatform.minecraft.platform` (`Loader`, `Platform`, `ClientPlatform`, `Payloads`), which the Fabric side fills in through `META-INF/services`. The Fabric side lives in `fabric/src/main/java/io/earthplatform/minecraft/fabric` (Fabric API callbacks and the mixins for the hooks, in `earthplatform.fabric.mixins.json`). Config files use NeoForge's config classes, through [Forge Config API Port](https://github.com/Fuzss/forgeconfigapiport) 26.2.1, bundled in the jar. Shared mixins that target a lambda list both its NeoForge name and its Fabric intermediary name, and build against the oldest Fabric Loader the jar accepts (newer Mixin versions write annotations older loaders can't read).
 
 ## Where things are
 

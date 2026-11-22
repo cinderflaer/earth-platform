@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/../fabric"
-export JAVA_HOME="${JAVA_HOME:-$(cd ../.toolchain/jdk21 && pwd)}"
+export JAVA_HOME="${JAVA_HOME:-$(cd ../.toolchain/jdk25&& pwd)}"
 export PATH="$JAVA_HOME/bin:$PATH"
 export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$PWD/.gradle-home}"
 # Java does not honor HTTPS_PROXY. Preserve the environment's managed proxy and CA trust.

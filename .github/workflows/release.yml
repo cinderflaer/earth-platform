@@ -89,7 +89,7 @@ jobs:
         if: steps.tag.outputs.skip != 'true'
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
 
       # The repository ignores gradle-wrapper.jar, so use a pinned Gradle instead of ./gradlew. Loom needs Gradle 9.5+.
       # The build compiles against Iris and Sodium, supplied from outside and verified by SHA-256. None of them is bundled.
@@ -103,12 +103,12 @@ jobs:
         working-directory: fabric
         run: |
           mkdir -p "$RUNNER_TEMP/inputs" && cd "$RUNNER_TEMP/inputs"
-          curl -fsSLo iris-fabric.jar 'https://cdn.modrinth.com/data/YL57xq9U/versions/bAo1Qhte/iris-fabric-1.8.14-beta.1%2Bmc1.21.1.jar'
-          curl -fsSLo sodium-fabric.jar 'https://cdn.modrinth.com/data/AANobbMI/versions/SMxNOGZ6/sodium-fabric-0.8.13%2Bmc1.21.1.jar'
+          curl -fsSLo iris-fabric.jar 'https://cdn.modrinth.com/data/YL57xq9U/versions/gxZWWnKH/iris-fabric-1.11.4%2Bmc26.2.jar'
+          curl -fsSLo sodium-fabric.jar 'https://cdn.modrinth.com/data/AANobbMI/versions/xJZxADzI/sodium-fabric-0.9.2%2Bmc26.2.jar'
           curl -fsSLo bugcourier-fabric.jar 'https://github.com/pirut/mc-mods/releases/download/bug-courier-v0.1.0/bugcourier-fabric-1.21.1-0.1.0.jar'
           sha256sum -c - <<'SUMS'
-          0ceb694040b4628bf3fa02286cfe5f0db833195669ab07f8caa4001359763eff  iris-fabric.jar
-          3d43c14985a4deb19c654aad3393b454cf57e1ebcbba86c4ae6a98dfc60eca2d  sodium-fabric.jar
+          f1f7ab57c974d193ba33aa285864a0ded949216f402116fceaf4dc7739b4dd7c  iris-fabric.jar
+          16a5e91db49750f8c046ecca3b8f2af5a28ea6f9b6581b42f123ca8fda20864f  sodium-fabric.jar
           d082b37978957872c2ef681660c6ce069f4964a31d8e8d444c5f548c484e85ab  bugcourier-fabric.jar
           SUMS
           export EARTH_INSTALLED_FABRIC_IRIS_JAR="$PWD/iris-fabric.jar" EARTH_INSTALLED_FABRIC_SODIUM_JAR="$PWD/sodium-fabric.jar" EARTH_BUG_COURIER_FABRIC_JAR="$PWD/bugcourier-fabric.jar"
@@ -128,7 +128,7 @@ jobs:
           ( cd dist && sha256sum "earthplatform-fabric-$TAG.jar" > "earthplatform-fabric-$TAG.jar.sha256" )
           notes="docs/release/notes/$TAG.md"
           if [ -f "$notes" ]; then cp "$notes" release-notes.md; else echo "Earth Platform $TAG" > release-notes.md; fi
-          { echo; echo "Mod version $version, for Minecraft 1.21.1: \`earthplatform-fabric-$TAG.jar\` for Fabric (with Fabric API). Built from $(git rev-parse --short HEAD)."; echo; echo '```'; cat dist/*.jar.sha256; echo '```'; } >> release-notes.md
+          { echo; echo "Mod version $version, for Minecraft 26.2: \`earthplatform-fabric-$TAG.jar\` for Fabric (with Fabric API). Built from $(git rev-parse --short HEAD)."; echo; echo '```'; cat dist/*.jar.sha256; echo '```'; } >> release-notes.md
 
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         id: github_release
@@ -142,7 +142,7 @@ jobs:
           make_latest: 'true'
           files: dist/*
 
-      # Uploads the jar to Modrinth (project earth-platform) as betas for Minecraft 1.21.1, with the
+      # Uploads the jar to Modrinth (project earth-platform) as betas for Minecraft 26.2, with the
       # build's notes as the changelog: the Fabric jar as version N+fabric
       # (needing Fabric API). The jar runs on both client and server.
       # Needs the MODRINTH_TOKEN secret (a Modrinth personal access token with "Create versions");
@@ -172,7 +172,7 @@ jobs:
             jq -n --arg project "$MODRINTH_PROJECT" --arg name "$2" --arg number "$1" \
               --arg changelog "$changelog" --arg type "$type" --argjson loaders "$4" --argjson deps "$5" \
               '{project_id: $project, name: $name, version_number: $number, changelog: $changelog,
-                version_type: $type, loaders: $loaders, game_versions: ["1.21.1"], dependencies: $deps,
+                version_type: $type, loaders: $loaders, game_versions: ["26.2"], dependencies: $deps,
                 featured: false, status: "listed", file_parts: ["jar"], primary_file: "jar"}' > modrinth-version.json
             curl -sS --fail-with-body -A "$agent" -H "Authorization: $MODRINTH_TOKEN" \
               -F "data=<modrinth-version.json;type=application/json" \
@@ -185,9 +185,9 @@ jobs:
           upload "$VERSION+fabric" "$TITLE for Fabric" "earthplatform-fabric-$TAG.jar" '["fabric", "quilt"]' \
             '[{"project_id": "P7dR8mSH", "dependency_type": "required"}]'
 
-      # Uploads the jar to CurseForge as betas for Minecraft 1.21.1, with the build's notes as the
+      # Uploads the jar to CurseForge as betas for Minecraft 26.2, with the build's notes as the
       # changelog: the Fabric jar (Fabric and Quilt, needing Fabric API)
-      # marked for client and server and Java 21. Sodium and Iris are optional.
+      # marked for client and server and Java 25. Sodium and Iris are optional.
       # Needs the CURSEFORGE_TOKEN secret (an API token from CurseForge → Account settings → API tokens)
       # and the CURSEFORGE_PROJECT repository variable (the project's numeric id, shown on the project
       # page under About Project). Without either, the step says so and skips. It runs even when the
