@@ -349,7 +349,7 @@ public final class CubicEvents {
         source.sendSuccess(() -> Component.literal(text), false);
         if (generator instanceof io.earthplatform.minecraft.cubic.earth.EarthGenerator earth) {
             var grid = earth.grid();
-            String stretch = io.earthplatform.minecraft.cubic.play.EarthStretch.where(grid.metresPerBlock(), grid.geographic(feet.getX(), feet.getZ()).latitude());
+            String stretch = io.earthplatform.minecraft.cubic.play.EarthStretch.where(grid.metresPerBlock(), grid.geographicClamped(feet.getX(), feet.getZ()).latitude());
             source.sendSuccess(() -> Component.literal(stretch).withStyle(ChatFormatting.GRAY), false);
         }
     }

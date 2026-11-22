@@ -65,7 +65,7 @@ public final class EarthCompassHud {
         if (compass == null) return null;
         MercatorGrid grid = grid();
         if (grid == null) return null;
-        GeoPoint here = grid.geographic(player.getX(), player.getZ());
+        GeoPoint here = grid.geographicClamped(player.getX(), player.getZ());
         GeoPoint to;
         Component name;
         CompoundTag target = EarthCompass.target(compass);
@@ -75,7 +75,7 @@ public final class EarthCompassHud {
         } else {
             BlockPos pos = position(player, compass);
             if (pos == null) return null;
-            to = grid.geographic(pos.getX() + 0.5, pos.getZ() + 0.5);
+            to = grid.geographicClamped(pos.getX() + 0.5, pos.getZ() + 0.5);
             name = Component.translatable(compass.is(Items.RECOVERY_COMPASS) ? "earthplatform.compass.death"
                     : compass.has(DataComponents.LODESTONE_TRACKER) ? "earthplatform.compass.lodestone" : "earthplatform.compass.spawn");
         }

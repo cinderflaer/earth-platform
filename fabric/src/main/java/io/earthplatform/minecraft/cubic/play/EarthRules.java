@@ -41,10 +41,10 @@ public final class EarthRules {
         return CubicLevel.of(player.level()) instanceof ServerCubeWorld cubes && cubes.generator() instanceof EarthGenerator earth ? earth : null;
     }
 
-    /** Where a player stands on the Earth, or null off it. */
+    /** Where a player stands on the Earth, or null off it (including in the Farlands beyond the poles). */
     @Nullable static GeoPoint where(ServerPlayer player) {
         EarthGenerator earth = earth(player);
-        return earth == null ? null : earth.grid().geographic(player.getX(), player.getZ());
+        return earth == null || !earth.grid().covers(player.getZ()) ? null : earth.grid().geographic(player.getX(), player.getZ());
     }
 
     /**

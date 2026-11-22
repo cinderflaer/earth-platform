@@ -69,7 +69,7 @@ public final class CurrentRide {
             riding = next.horizontalDistance() >= OceanCurrent.LETS_GO;
             state = !riding ? State.NONE : letGo ? State.SLOWING : State.RIDING;
         } else {
-            double latitude = new MercatorGrid(scale).geographic(boat.getX(), boat.getZ()).latitude();
+            double latitude = new MercatorGrid(scale).geographicClamped(boat.getX(), boat.getZ()).latitude();
             next = OceanCurrent.carry(velocity, yaw, latitude);
             state = State.RIDING;
         }

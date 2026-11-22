@@ -94,6 +94,18 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     }
     Underground underground() { return below; }
 
+    /** The generator for ground beyond the map, set by a subclass whose world has an edge; null where the ground never ends. */
+    @Nullable protected CubeGenerator beyond;
+    /** Whether a cube column is made by {@link #beyond} rather than here: it reaches past what this generator can read. */
+    protected boolean beyondCubes(int cubeX, int cubeZ) { return false; }
+    /** The same for a far column. */
+    protected boolean beyondFar(int level, int columnX, int columnZ) { return false; }
+
+    @Override public int skyTopY(int x, int z) {
+        if (beyondCubes(x >> 4, z >> 4)) return beyond.skyTopY(x, z);
+        return surfaceY(x, z);
+    }
+
     /** Pinned in a new Earth world's settings when it is made with vanilla's caves. */
     public static final String VANILLA_CAVES = "vanilla-1.21";
 
@@ -213,9 +225,13 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     }
 
     /** The cube column's own lowest ground, from the column its cubes are made from. */
-    @Override public final int lowestGround(int cubeX, int cubeZ) { return column(cubeX, cubeZ).min; }
+    @Override public final int lowestGround(int cubeX, int cubeZ) {
+        if (beyondCubes(cubeX, cubeZ)) return beyond.lowestGround(cubeX, cubeZ);
+        return column(cubeX, cubeZ).min;
+    }
 
     @Override public final int lowestSurface(int cubeX, int cubeZ) {
+        if (beyondCubes(cubeX, cubeZ)) return beyond.lowestSurface(cubeX, cubeZ);
         Column column = column(cubeX, cubeZ);
         int low = Integer.MAX_VALUE;
         for (int z = 1; z <= 16; z++) for (int x = 1; x <= 16; x++) {
@@ -226,11 +242,13 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     }
 
     @Override public final int highestSurface(int cubeX, int cubeZ) {
+        if (beyondCubes(cubeX, cubeZ)) return beyond.highestSurface(cubeX, cubeZ);
         Column column = column(cubeX, cubeZ);
         return Math.max(column.max, column.maxWater);
     }
 
     @Override public final int surfaceY(int x, int z) {
+        if (beyondCubes(x >> 4, z >> 4)) return beyond.surfaceY(x, z);
         Column cached = columns.get(columnKey(x >> 4, z >> 4));
         if (cached != null) return cached.height[((z & 15) + 1) * 18 + (x & 15) + 1];
         return (int) (groundOf(x, z) >> 32);
@@ -285,6 +303,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
 
     /** Whether trees grow in a column (the same rule tree placement uses), for callers outside generation. */
     public final boolean wooded(int x, int z) {
+        if (beyondCubes(x >> 4, z >> 4)) return false;
         int ground = surfaceY(x, z), water = waterY(x, z);
         if (water >= ground) return false;
         Surface surface = coverAt(x, z, ground, water);
@@ -292,6 +311,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     }
 
     @Override public final int waterY(int x, int z) {
+        if (beyondCubes(x >> 4, z >> 4)) return Integer.MIN_VALUE;
         Column cached = columns.get(columnKey(x >> 4, z >> 4));
         if (cached != null) return cached.water[((z & 15) + 1) * 18 + (x & 15) + 1];
         return (int) groundOf(x, z);
@@ -300,6 +320,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     // Far terrain: voxel columns sampled from the same height, cover and tree rules -------------
 
     @Override public void farColumn(int level, int columnX, int columnZ, FarColumn out) {
+        if (beyondFar(level, columnX, columnZ)) { beyond.farColumn(level, columnX, columnZ, out); return; }
         farColumn(level, columnX, columnZ, out, false, true, true, false);
     }
 
@@ -308,6 +329,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
      * sections), which is far less to make, send and keep; anywhere else as {@link #farColumn} makes it.
      */
     @Override public void farColumnCompact(int level, int columnX, int columnZ, FarColumn out) {
+        if (beyondFar(level, columnX, columnZ)) { beyond.farColumn(level, columnX, columnZ, out); return; }
         farColumn(level, columnX, columnZ, out, true, false, true, false);
     }
 
@@ -318,6 +340,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
 
     /** The column as runs, or null where only the dense form can hold it. */
     @Nullable public final FarSurfacePacket surfacePacket(int level, int columnX, int columnZ) {
+        if (beyondFar(level, columnX, columnZ)) return null;
         if (level < Far.MIN_LEVEL || level > Far.MAX_LEVEL) throw new IllegalArgumentException("Unsupported far level");
         FarColumn out = new FarColumn();
         farColumn(level, columnX, columnZ, out, true, false, false, false);
@@ -329,6 +352,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
      * {@link #previewSurface} in place of the full ground and surface, with no rock layers.
      */
     @Override public void farPreview(int level, int columnX, int columnZ, FarColumn out) {
+        if (beyondFar(level, columnX, columnZ)) { beyond.farColumn(level, columnX, columnZ, out); return; }
         previewing(level);
         try { farColumn(level, columnX, columnZ, out, false, true, true, true); }
         finally { previewing(0); }
@@ -594,6 +618,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     @Override public void attach(ServerLevel level) { vanilla = new VanillaStructures(level, new StructureHost(), seed); }
 
     @Override public LevelChunkSection generate(int cx, int cy, int cz, List<CompoundTag> blockEntities, List<CompoundTag> entities) {
+        if (beyondCubes(cx, cz)) return beyond.generate(cx, cy, cz, blockEntities, entities);
         LevelChunkSection section = terrain(cx, cy, cz, blockEntities, entities);
         Vegetation.bees(section, cx << 4, cy << 4, cz << 4, blockEntities);
         VanillaStructures structures = vanilla;
@@ -625,16 +650,19 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     }
 
     @Override public List<net.minecraft.world.level.levelgen.structure.StructureStart> structureStarts(int chunkX, int chunkZ) {
+        if (beyondCubes(chunkX, chunkZ)) return List.of();
         VanillaStructures structures = vanilla;
         return structures == null ? List.of() : structures.startsAt(chunkX, chunkZ);
     }
 
     @Override public @Nullable net.minecraft.world.level.levelgen.structure.StructureStart structureStart(net.minecraft.world.level.levelgen.structure.Structure structure, int chunkX, int chunkZ) {
+        if (beyondCubes(chunkX, chunkZ)) return null;
         VanillaStructures structures = vanilla;
         return structures == null ? null : structures.startOf(structure, chunkX, chunkZ);
     }
 
     @Override public @Nullable net.minecraft.world.level.levelgen.structure.StructureStart placedStructure(net.minecraft.world.level.levelgen.structure.Structure structure, int chunkX, int chunkZ) {
+        if (beyondCubes(chunkX, chunkZ)) return null;
         VanillaStructures structures = vanilla;
         return structures == null ? null : structures.placed(structure, new net.minecraft.world.level.ChunkPos(chunkX, chunkZ));
     }
@@ -651,6 +679,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     }
 
     @Override public String structuresAt(int x, int y, int z) {
+        if (beyondCubes(x >> 4, z >> 4)) return "";
         VanillaStructures structures = vanilla;
         return structures == null ? "" : structures.describe(x, y, z);
     }
@@ -698,6 +727,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
      * column, for biome searches (/locate biome, biome compasses) that sample far and wide.
      */
     @Override public Holder<Biome> biome(int x, int y, int z) {
+        if (beyondCubes(x >> 4, z >> 4)) return beyond.biome(x, y, z);
         int[] sample = new int[2];
         ground(x + 1, z, sample); int east = sample[0];
         ground(x - 1, z, sample); int west = sample[0];

@@ -2,6 +2,7 @@ package io.earthplatform.geography.globe;
 
 import io.earthplatform.geography.GeoPoint;
 import io.earthplatform.geography.MissingTerrainException;
+import io.earthplatform.geography.OutsideMapException;
 
 /**
  * Spherical Web Mercator block grid, projection id {@code web-mercator-v1}.
@@ -28,7 +29,7 @@ public record MercatorGrid(double metresPerBlock) {
 
     public double blockZ(GeoPoint point) {
         double lat = point.latitude();
-        if (Math.abs(lat) > MAX_LATITUDE) throw new MissingTerrainException("Latitude outside Web Mercator coverage: " + lat);
+        if (Math.abs(lat) > MAX_LATITUDE) throw new OutsideMapException("Latitude outside Web Mercator coverage: " + lat);
         double phi = Math.toRadians(lat);
         return -Math.log(Math.tan(Math.PI / 4 + phi / 2)) * RADIUS / metresPerBlock;
     }
@@ -37,10 +38,19 @@ public record MercatorGrid(double metresPerBlock) {
     public GeoPoint geographic(double x, double z) {
         if (!Double.isFinite(x) || !Double.isFinite(z)) throw new IllegalArgumentException("Non-finite block position");
         double half = worldWidthBlocks() / 2;
-        if (Math.abs(z) > half) throw new MissingTerrainException("Block Z outside Web Mercator coverage: " + z);
+        if (Math.abs(z) > half) throw new OutsideMapException("Block Z outside Web Mercator coverage: " + z);
         double lon = Math.toDegrees(x * metresPerBlock / RADIUS);
         double lat = Math.toDegrees(2 * Math.atan(Math.exp(-z * metresPerBlock / RADIUS)) - Math.PI / 2);
         return new GeoPoint(lat, lon);
+    }
+
+    /** Whether a block-space Z lies within the covered square (X always does: it wraps). */
+    public boolean covers(double z) { return Math.abs(z) <= worldWidthBlocks() / 2; }
+
+    /** Like {@link #geographic} but a Z beyond the poles is taken as the nearest covered edge, for callers that only need a place near the map. */
+    public GeoPoint geographicClamped(double x, double z) {
+        double half = worldWidthBlocks() / 2;
+        return geographic(x, Double.isNaN(z) ? 0 : Math.max(-half, Math.min(half, z)));
     }
 
     /** Centre of the integer block column, matching how a voxel at (x, z) occupies [x, x+1). */
