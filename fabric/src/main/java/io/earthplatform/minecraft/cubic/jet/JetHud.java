@@ -37,7 +37,7 @@ public final class JetHud {
         if (text == null) return;
         showing = true;
         Component compass = EarthCompassHud.line(player);
-        Minecraft.getInstance().gui.setOverlayMessage(compass == null ? text : Component.empty().append(text).append("  ·  ").append(compass), false);
+        Minecraft.getInstance().player.sendOverlayMessage(compass == null ? text : Component.empty().append(text).append("  ·  ").append(compass));
     }
 
     /** Whether a glider's or a boat's line has the action bar, which the compass's own line then leaves alone. */

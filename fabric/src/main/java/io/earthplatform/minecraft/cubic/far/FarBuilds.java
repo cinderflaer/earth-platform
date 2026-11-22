@@ -232,19 +232,19 @@ public final class FarBuilds {
         synchronized void load() throws IOException {
             if (!Files.exists(file)) return;
             CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
-            if (root.getInt("v") != VERSION) return;
+            if (root.getIntOr("v", 0) != VERSION) return;
             List<BlockState> palette = new ArrayList<>();
-            for (Tag entry : root.getList("palette", Tag.TAG_COMPOUND)) {
-                palette.add(NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(), (CompoundTag) entry));
+            for (Tag entry : root.getListOrEmpty("palette")) {
+                palette.add(NbtUtils.readBlockState(BuiltInRegistries.BLOCK, (CompoundTag) entry));
             }
-            for (Tag entry : root.getList("cubes", Tag.TAG_COMPOUND)) {
+            for (Tag entry : root.getListOrEmpty("cubes")) {
                 CompoundTag cube = (CompoundTag) entry;
-                byte[] tops = cube.getByteArray("t");
-                int block = cube.getInt("b");
+                byte[] tops = cube.getByteArray("t").orElse(new byte[0]);
+                int block = cube.getIntOr("b", 0);
                 if (tops.length != 256 || block < 0 || block >= palette.size()) continue;
                 BlockState state = palette.get(block);
                 // A block from a mod since removed reads as air; stone stands in for it from afar.
-                cubes.put(cube.getLong("k"), new Summary(tops, cube.getInt("lo"), state.isAir() ? Blocks.STONE.defaultBlockState() : state));
+                cubes.put(cube.getLongOr("k", 0L), new Summary(tops, cube.getIntOr("lo", 0), state.isAir() ? Blocks.STONE.defaultBlockState() : state));
             }
         }
 

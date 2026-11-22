@@ -96,7 +96,7 @@ public final class EarthWorlds {
 
     /** Whether a server's world was made with the Earth world type. */
     public static boolean isEarth(MinecraftServer server) {
-        LevelStem overworld = server.registryAccess().registryOrThrow(Registries.LEVEL_STEM).get(LevelStem.OVERWORLD);
+        LevelStem overworld = server.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).getValue(LevelStem.OVERWORLD);
         return overworld != null && overworld.generator() instanceof FlatLevelSource flat
                 && flat.settings().structureOverrides().flatMap(HolderSet::unwrapKey).filter(MARKER::equals).isPresent();
     }
@@ -119,8 +119,8 @@ public final class EarthWorlds {
         }
         CubicSettings.pinEarth(cubicFolder(server), choice.settings, choice.name);
         // Nobody stays in the stand-in overworld: keep no spawn area loaded, and don't search one for a spawn spot.
-        server.getWorldData().getGameRules().getRule(GameRules.RULE_SPAWN_CHUNK_RADIUS).set(0, null);
-        server.getWorldData().getGameRules().getRule(GameRules.RULE_SPAWN_RADIUS).set(0, null);
+        // TODO(26.2): the spawn chunk radius rule is gone; the spawn area is the respawn data now.
+        server.getGameRules().set(GameRules.RESPAWN_RADIUS, 0, server);
         EarthPlatformMod.LOGGER.info("New Earth world, home {} {}, {}", choice.settings.latitude(), choice.settings.longitude(), choice.name);
     }
 
@@ -346,7 +346,7 @@ public final class EarthWorlds {
                 player.onUpdateAbilities();
                 floating.add(player.getUUID());
             }
-            if (player.position().distanceToSqr(HOLD) > 4) player.teleportTo(player.serverLevel(), HOLD.x, HOLD.y, HOLD.z, player.getYRot(), player.getXRot());
+            if (player.position().distanceToSqr(HOLD) > 4) CubicEvents.teleport(player, player.level(), HOLD.x, HOLD.y, HOLD.z, player.getYRot(), player.getXRot());
             player.setDeltaMovement(Vec3.ZERO);
             player.resetFallDistance();
         }
@@ -364,10 +364,10 @@ public final class EarthWorlds {
             int[] found = landing;
             Vec3 spot = found != null ? CubicEvents.arrivalAt(cubes, found) : CubicEvents.arrival(cubes, view);
             ServerLevel level = server.getLevel(Cubic.LEVEL);
-            player.teleportTo(level, spot.x, spot.y, spot.z, CubicEvents.lookOut(cubes, spot, CubicEvents.facing(spot, view, player.getYRot())), 0.0F);
+            CubicEvents.teleport(player, level, spot.x, spot.y, spot.z, CubicEvents.lookOut(cubes, spot, CubicEvents.facing(spot, view, player.getYRot())), 0.0F);
             player.resetFallDistance();
             status.send(player, status.payload(EarthStatus.PLAYING, EarthStatus.OK, 0, ""), Util.getMillis());
-            if (player.getTags().contains(WELCOMED)) { EarthBasics.bonusChest(level, cubicFolder(server), spot, player); return; }
+            if (player.entityTags().contains(WELCOMED)) { EarthBasics.bonusChest(level, cubicFolder(server), spot, player); return; }
             player.addTag(WELCOMED);
             String place = place();
             player.sendSystemMessage(Component.literal("Welcome to the Earth" + (place.isEmpty() ? "." : ": " + place + "."))
@@ -385,16 +385,16 @@ public final class EarthWorlds {
             if (EarthCommands.mayChooseStart(player))
                 player.sendSystemMessage(Component.literal("You can choose where you start, once: ")
                         .append(Component.literal("[Choose on the map]").withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/earth start"))
-                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Opens the globe"))))));
+                                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/earth start"))
+                                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Opens the globe"))))));
             EarthBasics.bonusChest(level, cubicFolder(server), spot, player);
         }
     }
 
     private static Component command(String text, String suggestion) {
         return Component.literal(text).withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, suggestion))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to type it"))));
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.SuggestCommand(suggestion))
+                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Click to type it"))));
     }
 
     // Commands ------------------------------------------------------------------------------------
@@ -416,7 +416,7 @@ public final class EarthWorlds {
                                     return CubicEvents.travel(context.getSource(), latitude, longitude);
                                 })
                                 // Operators and the console can send someone else.
-                                .then(Commands.argument("player", EntityArgument.player()).requires(source -> source.hasPermission(2))
+                                .then(Commands.argument("player", EntityArgument.player()).requires(source -> source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER))
                                         .executes(context -> CubicEvents.travel(context.getSource(), EntityArgument.getPlayer(context, "player"),
                                                 DoubleArgumentType.getDouble(context, "latitude"), DoubleArgumentType.getDouble(context, "longitude")))))));
         // The travel map in creative, the survival map otherwise: the client opens it with a key, through this command.
@@ -440,9 +440,9 @@ public final class EarthWorlds {
 
     /** Travel is for operators, the singleplayer owner, or everyone when the server allows it. */
     static boolean mayTravel(CommandSourceStack source) {
-        if (source.hasPermission(2) || EarthConfig.ANYONE_CAN_TRAVEL.get()) return true;
+        if (source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER) || EarthConfig.ANYONE_CAN_TRAVEL.get()) return true;
         ServerPlayer player = source.getPlayer();
-        return player != null && source.getServer().isSingleplayerOwner(player.getGameProfile());
+        return player != null && source.getServer().isSingleplayerOwner(new net.minecraft.server.players.NameAndId(player.getGameProfile()));
     }
 
     private static int visit(CommandSourceStack source, String query) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -485,8 +485,8 @@ public final class EarthWorlds {
         String spot = String.format(java.util.Locale.ROOT, "%.3f %.3f", latitude, longitude);
         var line = Component.literal("  " + label + " ").append(Component.literal("(" + spot + ")").withStyle(ChatFormatting.GRAY));
         if (!travel) return line;
-        return line.withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/earth goto " + spot))
-                .withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, Component.literal("Click to travel here"))));
+        return line.withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/earth goto " + spot))
+                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Click to travel here"))));
     }
 
     /** Sends a player to the server spawn (the world's start unless operators moved it); replies go to {@code source}. */
@@ -504,11 +504,11 @@ public final class EarthWorlds {
             return CubicEvents.travel(source, player, spawn.get().latitude(), spawn.get().longitude(), spawn.get().viewLatitude(), spawn.get().viewLongitude());
         int[] view = Session.view(cubes);
         Vec3 spot = found != null ? CubicEvents.arrivalAt(cubes, found) : CubicEvents.arrival(cubes, view);
-        player.teleportTo(level, spot.x, spot.y, spot.z, CubicEvents.lookOut(cubes, spot, CubicEvents.facing(spot, view, player.getYRot())), 0.0F);
+        CubicEvents.teleport(player, level, spot.x, spot.y, spot.z, CubicEvents.lookOut(cubes, spot, CubicEvents.facing(spot, view, player.getYRot())), 0.0F);
         if (source.getPlayer() == player) {
             try { return CubicEvents.where(source); } catch (com.mojang.brigadier.exceptions.CommandSyntaxException notAPlayer) { return 1; }
         }
-        source.sendSuccess(() -> Component.literal("Sent " + player.getGameProfile().getName() + " to the server spawn."), true);
+        source.sendSuccess(() -> Component.literal("Sent " + player.getGameProfile().name() + " to the server spawn."), true);
         return 1;
     }
 
@@ -533,8 +533,8 @@ public final class EarthWorlds {
         for (EarthPlaces.Place place : EarthPlaces.all()) {
             String coordinates = String.format(java.util.Locale.ROOT, "%.4f, %.4f", place.latitude(), place.longitude());
             Component line = Component.literal("  " + place.label()).withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/earth visit " + place.id()))
-                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(coordinates))));
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/earth visit " + place.id()))
+                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(coordinates))));
             source.sendSuccess(() -> line, false);
         }
         return EarthPlaces.all().size();

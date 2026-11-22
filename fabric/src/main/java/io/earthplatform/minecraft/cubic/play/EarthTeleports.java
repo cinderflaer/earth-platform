@@ -1,5 +1,6 @@
 package io.earthplatform.minecraft.cubic.play;
 
+import io.earthplatform.minecraft.cubic.CubicEvents;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import io.earthplatform.geography.GeoPoint;
 import java.util.ArrayList;
@@ -48,7 +49,7 @@ final class EarthTeleports {
     }
 
     private static boolean allowed(CommandSourceStack source) {
-        return source.getPlayer() != null && (EarthConfig.TELEPORT_REQUESTS.get() || source.hasPermission(2));
+        return source.getPlayer() != null && (EarthConfig.TELEPORT_REQUESTS.get() || source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER));
     }
 
     private static int ask(CommandSourceStack source, ServerPlayer other, boolean here) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -56,20 +57,20 @@ final class EarthTeleports {
         if (other == player) { source.sendFailure(Component.literal("That's you.")); return 0; }
         REQUESTS.removeIf(request -> request.from.equals(player.getUUID()) && request.to.equals(other.getUUID()));
         REQUESTS.add(new Request(player.getUUID(), other.getUUID(), here, Util.getMillis()));
-        String name = player.getGameProfile().getName();
+        String name = player.getGameProfile().name();
         other.sendSystemMessage(Component.literal(here ? name + " asks you to come to them. " : name + " asks to come to you. ")
                 .withStyle(ChatFormatting.GOLD)
                 .append(button("[Accept]", "/earth tpaccept " + name, ChatFormatting.GREEN))
                 .append(Component.literal(" "))
                 .append(button("[Deny]", "/earth tpdeny " + name, ChatFormatting.RED)));
-        source.sendSuccess(() -> Component.literal("Asked " + other.getGameProfile().getName() + ". The request lasts two minutes."), false);
+        source.sendSuccess(() -> Component.literal("Asked " + other.getGameProfile().name() + ". The request lasts two minutes."), false);
         return 1;
     }
 
     private static Component button(String text, String command, ChatFormatting color) {
         return Component.literal(text).withStyle(style -> style.withColor(color)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(command))));
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(command))
+                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(command))));
     }
 
     private static int answer(CommandSourceStack source, @Nullable ServerPlayer asker, boolean accept) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
@@ -81,10 +82,10 @@ final class EarthTeleports {
         }
         if (found == null) { source.sendFailure(Component.literal("No teleport request to answer.")); return 0; }
         REQUESTS.remove(found);
-        ServerPlayer from = player.server.getPlayerList().getPlayer(found.from);
+        ServerPlayer from = player.level().getServer().getPlayerList().getPlayer(found.from);
         if (from == null) { source.sendFailure(Component.literal("They have left.")); return 0; }
         if (!accept) {
-            from.sendSystemMessage(Component.literal(player.getGameProfile().getName() + " said no.").withStyle(ChatFormatting.GRAY));
+            from.sendSystemMessage(Component.literal(player.getGameProfile().name() + " said no.").withStyle(ChatFormatting.GRAY));
             source.sendSuccess(() -> Component.literal("Denied."), false);
             return 1;
         }
@@ -94,10 +95,10 @@ final class EarthTeleports {
         GeoPoint to = EarthRules.where(target);
         CommandSourceStack payer = mover.createCommandSourceStack();
         if (!EarthRules.pay(payer, mover, to.latitude(), to.longitude())) return 0;
-        mover.teleportTo(target.serverLevel(), target.getX(), target.getY(), target.getZ(), target.getYRot(), mover.getXRot());
+        CubicEvents.teleport(mover, target.level(), target.getX(), target.getY(), target.getZ(), target.getYRot(), mover.getXRot());
         mover.resetFallDistance();
         EarthRace.travelled(mover);
-        mover.sendSystemMessage(Component.literal("Teleported to " + target.getGameProfile().getName() + ".").withStyle(ChatFormatting.GREEN));
+        mover.sendSystemMessage(Component.literal("Teleported to " + target.getGameProfile().name() + ".").withStyle(ChatFormatting.GREEN));
         if (mover != player) source.sendSuccess(() -> Component.literal("Accepted."), false);
         return 1;
     }

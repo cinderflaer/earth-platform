@@ -92,16 +92,16 @@ final class EarthToggles {
         for (Number number : NUMBERS) {
             String command = "/earth settings " + number.name + " ";
             Component line = Component.literal("  " + number.name + " = " + number.value.get()).withStyle(style -> style.withColor(ChatFormatting.WHITE)
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, command))
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to change"))))
+                            .withClickEvent(new net.minecraft.network.chat.ClickEvent.SuggestCommand(command))
+                            .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Click to change"))))
                     .append(Component.literal(": " + number.what).withStyle(ChatFormatting.GRAY));
             source.sendSuccess(() -> line, false);
         }
         for (Text text : TEXTS) {
             String command = "/earth settings " + text.name + " ";
             Component line = Component.literal("  " + text.name + " = " + text.value.get()).withStyle(style -> style.withColor(ChatFormatting.WHITE)
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, command))
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to change"))))
+                            .withClickEvent(new net.minecraft.network.chat.ClickEvent.SuggestCommand(command))
+                            .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Click to change"))))
                     .append(Component.literal(": " + text.what).withStyle(ChatFormatting.GRAY));
             source.sendSuccess(() -> line, false);
         }
@@ -112,8 +112,8 @@ final class EarthToggles {
         return Component.literal("[" + text + "]").withStyle(style -> style
                 .withColor(lit ? (text.equals("ON") ? ChatFormatting.GREEN : ChatFormatting.RED) : ChatFormatting.DARK_GRAY)
                 .withBold(lit)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(command))));
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(command))
+                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(command))));
     }
 
     private static int set(CommandSourceStack source, Toggle toggle, boolean on) {

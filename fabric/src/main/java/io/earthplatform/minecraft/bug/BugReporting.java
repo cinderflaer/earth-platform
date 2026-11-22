@@ -44,8 +44,8 @@ public final class BugReporting {
         URI uri = GithubBugLink.url(BugPlace.capture(source, summary == null ? "" : summary));
         if (Loader.INSTANCE.isClient()) Util.getPlatform().openUri(uri);
         Component link = Component.literal("[Open the prefilled issue]").withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, uri.toString()))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Nothing is sent until you press Submit on GitHub"))));
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(uri))
+                .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Nothing is sent until you press Submit on GitHub"))));
         String lead = Loader.INSTANCE.hasMod(GithubBugLink.MOD_ID)
                 ? "Bug Courier runs on your own computer. Use the pause menu's Report a mod bug button, or /bugreport earthplatform. "
                 : "Bug Courier isn't installed, so this opens a prefilled GitHub issue. Nothing is sent until you press Submit. ";

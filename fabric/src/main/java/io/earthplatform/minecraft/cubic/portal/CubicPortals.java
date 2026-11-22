@@ -50,7 +50,7 @@ public final class CubicPortals {
     private CubicPortals() {}
 
     public static boolean livesInCubic(ServerPlayer player) {
-        return Cubic.isCubic(player.level().dimension()) || player.getTags().contains(HOME_TAG);
+        return Cubic.isCubic(player.level().dimension()) || player.entityTags().contains(HOME_TAG);
     }
 
     @Nullable public static ServerLevel cubicLevel(ServerLevel any) {
@@ -62,7 +62,7 @@ public final class CubicPortals {
      * Where a Nether portal leads an entity standing in it, when that is the cubic world: always
      * for players who live there, and for anything else when the portal was built from it.
      */
-    @Nullable public static net.minecraft.world.level.portal.DimensionTransition fromNether(ServerLevel nether, Entity entity, BlockPos portal) {
+    @Nullable public static net.minecraft.world.level.portal.TeleportTransition fromNether(ServerLevel nether, Entity entity, BlockPos portal) {
         ServerLevel cubic = cubicLevel(nether);
         if (cubic == null || !(CubicLevel.of(cubic) instanceof ServerCubeWorld cubes)) return null;
         double scale = DimensionType.getTeleportationScale(nether.dimensionType(), cubic.dimensionType());
@@ -70,7 +70,7 @@ public final class CubicPortals {
         Registry registry = Registry.of(cubic);
         BlockPos found = nearest(cubes, registry, target, SEARCH);
         if (found == null) found = nearest(cubes, registry, target, LINK_SEARCH);
-        boolean home = entity instanceof ServerPlayer player && player.getTags().contains(HOME_TAG);
+        boolean home = entity instanceof ServerPlayer player && player.entityTags().contains(HOME_TAG);
         if (found == null && !home) return null;
 
         BlockUtil.FoundRectangle exit;
@@ -83,7 +83,7 @@ public final class CubicPortals {
             exit = build(cubic, cubes, target.getX(), target.getZ(), axis);
         }
         return NetherPortalAccess.earthplatform$exit(entity, portal, exit, cubic,
-                net.minecraft.world.level.portal.DimensionTransition.PLAY_PORTAL_SOUND);
+                net.minecraft.world.level.portal.TeleportTransition.PLAY_PORTAL_SOUND);
     }
 
     /** The registered portal block closest to a target column within a square, checked against the real block. */
@@ -181,15 +181,19 @@ public final class CubicPortals {
     /** Every Nether portal block in the cubic world, saved with the dimension. */
     static final class Registry extends SavedData {
         private static final String NAME = "earthplatform_cubic_portals";
+        /** How this is saved with the world: as one compound, under a name of its own. */
+        private static final net.minecraft.world.level.saveddata.SavedDataType<Registry> TYPE = new net.minecraft.world.level.saveddata.SavedDataType<>(
+                net.minecraft.resources.Identifier.fromNamespaceAndPath("earthplatform", "cubic_portals"), Registry::new,
+                net.minecraft.nbt.CompoundTag.CODEC.xmap(tag -> load(tag, null), data -> data.save(new net.minecraft.nbt.CompoundTag(), null)), null);
         final Set<BlockPos> portals = new HashSet<>();
 
         static Registry of(ServerLevel cubic) {
-            return cubic.getDataStorage().computeIfAbsent(new SavedData.Factory<>(Registry::new, Registry::load, null), NAME);
+            return cubic.getDataStorage().computeIfAbsent(TYPE);
         }
 
         private static Registry load(CompoundTag tag, HolderLookup.Provider registries) {
             Registry registry = new Registry();
-            int[] packed = tag.getIntArray("portals");
+            int[] packed = tag.getIntArray("portals").orElse(new int[0]);
             for (int i = 0; i + 2 < packed.length; i += 3) registry.portals.add(new BlockPos(packed[i], packed[i + 1], packed[i + 2]));
             return registry;
         }
@@ -197,7 +201,7 @@ public final class CubicPortals {
         void add(BlockPos pos) { if (portals.add(pos)) setDirty(); }
         void remove(BlockPos pos) { if (portals.remove(pos)) setDirty(); }
 
-        @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
             int[] packed = new int[portals.size() * 3];
             int i = 0;
             for (BlockPos pos : portals) { packed[i++] = pos.getX(); packed[i++] = pos.getY(); packed[i++] = pos.getZ(); }

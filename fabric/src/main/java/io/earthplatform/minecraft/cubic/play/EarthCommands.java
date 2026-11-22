@@ -170,7 +170,7 @@ final class EarthCommands {
                 .then(Commands.literal("here").executes(here::run));
     }
 
-    static boolean op(CommandSourceStack source) { return source.hasPermission(2); }
+    static boolean op(CommandSourceStack source) { return source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER); }
 
     private static boolean mayUseHomes(CommandSourceStack source) {
         return EarthConfig.ANYONE_CAN_USE_HOMES.get() || EarthWorlds.mayTravel(source);
@@ -182,7 +182,7 @@ final class EarthCommands {
     }
 
     static boolean mayChooseStart(ServerPlayer player) {
-        return EarthConfig.PLAYERS_CHOOSE_START.get() && !EarthSpawns.of(player.server).started(player.getUUID());
+        return EarthConfig.PLAYERS_CHOOSE_START.get() && !EarthSpawns.of(player.level().getServer()).started(player.getUUID());
     }
 
     @Nullable static EarthGenerator earth(CommandSourceStack source) {
@@ -229,7 +229,7 @@ final class EarthCommands {
             spawns.setSpawn(player.getUUID(), spot);
             EarthCompass.tellSpawn(player);
         }
-        String who = players.size() == 1 ? players.iterator().next().getGameProfile().getName() : players.size() + " players";
+        String who = players.size() == 1 ? players.iterator().next().getGameProfile().name() : players.size() + " players";
         source.sendSuccess(() -> Component.literal(spot == null ? who + " will spawn at the server spawn again."
                 : who + " will spawn at " + spot.label() + " when they have no bed.").withStyle(ChatFormatting.GREEN), true);
         return players.size();
@@ -400,8 +400,8 @@ final class EarthCommands {
         source.sendSuccess(() -> Component.literal("Warps (click one to go):").withStyle(ChatFormatting.GREEN), false);
         warps.forEach((name, spot) -> {
             Component line = Component.literal("  " + name).withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                    .withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/earth warp " + name))
-                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT, Component.literal(spot.label()))));
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/earth warp " + name))
+                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(spot.label()))));
             source.sendSuccess(() -> line, false);
         });
         return warps.size();

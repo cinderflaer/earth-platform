@@ -99,7 +99,7 @@ public final class OceanCurrent {
      */
     public static boolean carried(Entity entity) {
         Boat boat = entity.getRootVehicle() instanceof Boat ridden && atSea(ridden) ? ridden : null;
-        if (entity.level().isClientSide) {
+        if (entity.level().isClientSide()) {
             return boat != null && ((Ride) boat).earthplatform$riding() && boat.getDeltaMovement().horizontalDistanceSqr() > OUTRUNS * OUTRUNS;
         }
         if (boat != null && fast(boat)) return true;
@@ -203,7 +203,7 @@ public final class OceanCurrent {
             return null;
         }
         Vec3 velocity = boat.getDeltaMovement(), next = null;
-        if (Loader.INSTANCE.isClient() && boat.level().isClientSide && boat.getControllingPassenger() instanceof Player player && player.isLocalPlayer()) {
+        if (Loader.INSTANCE.isClient() && boat.level().isClientSide() && boat.getControllingPassenger() instanceof Player player && player.isLocalPlayer()) {
             next = CurrentRide.steer(boat);
         } else {
             ride.earthplatform$setRiding(false);

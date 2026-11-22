@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -21,6 +22,15 @@ import net.minecraft.server.level.ServerPlayer;
  * wrap above Y 2047.
  */
 public final class CubePayloads {
+    /** A long array of at most a number of keys, as {@link FriendlyByteBuf#writeLongArray} writes it. */
+    private static long[] readKeys(FriendlyByteBuf buf, int max) {
+        int count = buf.readVarInt();
+        if (count > max) throw new io.netty.handler.codec.DecoderException("Too many keys: " + count + " > " + max);
+        long[] keys = new long[count];
+        for (int i = 0; i < count; i++) keys[i] = buf.readLong();
+        return keys;
+    }
+
     private CubePayloads() {}
 
     private static Identifier id(String path) { return Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, path); }
@@ -91,7 +101,7 @@ public final class CubePayloads {
         public static final int MAX_KEYS = 512;
         public static final Type<FarRequest> TYPE = new Type<>(id("far_request"));
         public static final StreamCodec<RegistryFriendlyByteBuf, FarRequest> CODEC = StreamCodec.of(
-                (buf, p) -> buf.writeLongArray(p.keys), buf -> new FarRequest(buf.readLongArray(null, MAX_KEYS)));
+                (buf, p) -> buf.writeLongArray(p.keys), buf -> new FarRequest(readKeys(buf, MAX_KEYS)));
         @Override public Type<FarRequest> type() { return TYPE; }
     }
 
@@ -104,7 +114,7 @@ public final class CubePayloads {
         public static final int MAX_KEYS = 4096;
         public static final Type<FarPreviewRequest> TYPE = new Type<>(id("far_preview_request"));
         public static final StreamCodec<RegistryFriendlyByteBuf, FarPreviewRequest> CODEC = StreamCodec.of(
-                (buf, p) -> buf.writeLongArray(p.keys), buf -> new FarPreviewRequest(buf.readLongArray(null, MAX_KEYS)));
+                (buf, p) -> buf.writeLongArray(p.keys), buf -> new FarPreviewRequest(readKeys(buf, MAX_KEYS)));
         @Override public Type<FarPreviewRequest> type() { return TYPE; }
     }
 
@@ -180,10 +190,10 @@ public final class CubePayloads {
         registrar.toClient(FarColumnData.TYPE, FarColumnData.CODEC, p -> { if (Loader.INSTANCE.isClient()) CubicClientReceiver.far(p); });
         registrar.toClient(EarthScale.TYPE, EarthScale.CODEC, p -> { if (Loader.INSTANCE.isClient()) CubicClientReceiver.scale(p); });
         registrar.toServer(FarRequest.TYPE, FarRequest.CODEC, (p, player) -> {
-            if (CubicLevel.of(player.serverLevel()) instanceof ServerCubeWorld world) world.far().request(player, p.keys());
+            if (CubicLevel.of(player.level()) instanceof ServerCubeWorld world) world.far().request(player, p.keys());
         });
         registrar.toServer(FarPreviewRequest.TYPE, FarPreviewRequest.CODEC, (p, player) -> {
-            if (CubicLevel.of(player.serverLevel()) instanceof ServerCubeWorld world) world.far().requestPreviews(player, p.keys());
+            if (CubicLevel.of(player.level()) instanceof ServerCubeWorld world) world.far().requestPreviews(player, p.keys());
         });
     }
 }

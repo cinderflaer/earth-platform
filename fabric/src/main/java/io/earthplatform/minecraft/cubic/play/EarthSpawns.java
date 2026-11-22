@@ -20,6 +20,10 @@ import net.minecraft.world.level.saveddata.SavedData;
  */
 public final class EarthSpawns extends SavedData {
     private static final String NAME = "earthplatform_spawns";
+    /** How this is saved with the world: as one compound, under a name of its own. */
+    private static final net.minecraft.world.level.saveddata.SavedDataType<EarthSpawns> TYPE = new net.minecraft.world.level.saveddata.SavedDataType<>(
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("earthplatform", "spawns"), EarthSpawns::new,
+            net.minecraft.nbt.CompoundTag.CODEC.xmap(tag -> load(tag, null), data -> data.save(new net.minecraft.nbt.CompoundTag(), null)), null);
 
     /** A spot on the Earth, facing a sight (NaN for none), with a name to tell people (may be empty). */
     public record Spot(double latitude, double longitude, double viewLatitude, double viewLongitude, String name) {
@@ -44,9 +48,9 @@ public final class EarthSpawns extends SavedData {
         }
 
         static Spot load(CompoundTag tag) {
-            return new Spot(tag.getDouble("lat"), tag.getDouble("lon"),
-                    tag.contains("viewLat") ? tag.getDouble("viewLat") : Double.NaN, tag.contains("viewLon") ? tag.getDouble("viewLon") : Double.NaN,
-                    tag.getString("name"));
+            return new Spot(tag.getDoubleOr("lat", 0.0), tag.getDoubleOr("lon", 0.0),
+                    tag.contains("viewLat") ? tag.getDoubleOr("viewLat", 0.0) : Double.NaN, tag.contains("viewLon") ? tag.getDoubleOr("viewLon", 0.0) : Double.NaN,
+                    tag.getStringOr("name", ""));
         }
     }
 
@@ -81,7 +85,7 @@ public final class EarthSpawns extends SavedData {
     }
 
     public static EarthSpawns of(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(new SavedData.Factory<>(EarthSpawns::new, EarthSpawns::load, null), NAME);
+        return server.overworld().getDataStorage().computeIfAbsent(TYPE);
     }
 
     public Optional<Spot> spawn() { return Optional.ofNullable(spawn); }
@@ -134,27 +138,27 @@ public final class EarthSpawns extends SavedData {
 
     private static EarthSpawns load(CompoundTag tag, HolderLookup.Provider registries) {
         EarthSpawns spawns = new EarthSpawns();
-        if (tag.contains("spawn")) spawns.spawn = Spot.load(tag.getCompound("spawn"));
-        read(tag.getCompound("spawns"), spawns.spawns);
-        read(tag.getCompound("homes"), spawns.homes);
-        CompoundTag warps = tag.getCompound("warps");
-        for (String name : warps.getAllKeys()) spawns.warps.put(name, Spot.load(warps.getCompound(name)));
-        CompoundTag teams = tag.getCompound("teams");
-        for (String name : teams.getAllKeys()) spawns.teams.put(name, Spot.load(teams.getCompound(name)));
+        if (tag.contains("spawn")) spawns.spawn = Spot.load(tag.getCompoundOrEmpty("spawn"));
+        read(tag.getCompoundOrEmpty("spawns"), spawns.spawns);
+        read(tag.getCompoundOrEmpty("homes"), spawns.homes);
+        CompoundTag warps = tag.getCompoundOrEmpty("warps");
+        for (String name : warps.keySet()) spawns.warps.put(name, Spot.load(warps.getCompoundOrEmpty(name)));
+        CompoundTag teams = tag.getCompoundOrEmpty("teams");
+        for (String name : teams.keySet()) spawns.teams.put(name, Spot.load(teams.getCompoundOrEmpty(name)));
         if (tag.contains("border")) {
-            CompoundTag b = tag.getCompound("border");
-            spawns.border = new Border(b.getDouble("south"), b.getDouble("west"), b.getDouble("north"), b.getDouble("east"), b.getString("country"));
+            CompoundTag b = tag.getCompoundOrEmpty("border");
+            spawns.border = new Border(b.getDoubleOr("south", 0.0), b.getDoubleOr("west", 0.0), b.getDoubleOr("north", 0.0), b.getDoubleOr("east", 0.0), b.getStringOr("country", ""));
         }
-        if (tag.contains("raceDay")) spawns.raceDay = tag.getLong("raceDay");
-        for (Tag id : tag.getList("started", Tag.TAG_STRING)) {
-            try { spawns.started.add(UUID.fromString(id.getAsString())); } catch (IllegalArgumentException ignored) {}
+        if (tag.contains("raceDay")) spawns.raceDay = tag.getLongOr("raceDay", 0L);
+        for (Tag id : tag.getListOrEmpty("started")) {
+            try { spawns.started.add(UUID.fromString(id.asString().orElse(""))); } catch (IllegalArgumentException ignored) {}
         }
         return spawns;
     }
 
     private static void read(CompoundTag tag, Map<UUID, Spot> into) {
-        for (String key : tag.getAllKeys()) {
-            try { into.put(UUID.fromString(key), Spot.load(tag.getCompound(key))); } catch (IllegalArgumentException ignored) {}
+        for (String key : tag.keySet()) {
+            try { into.put(UUID.fromString(key), Spot.load(tag.getCompoundOrEmpty(key))); } catch (IllegalArgumentException ignored) {}
         }
     }
 
@@ -164,7 +168,7 @@ public final class EarthSpawns extends SavedData {
         return tag;
     }
 
-    @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         if (spawn != null) tag.put("spawn", spawn.save());
         tag.put("spawns", write(spawns));
         tag.put("homes", write(homes));

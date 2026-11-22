@@ -8,7 +8,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.portal.DimensionTransition;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -28,12 +28,12 @@ public final class CubicTravel {
      * anchor brings a cubic player back to the Earth's arrival point. A trip for a player: unchanged when they don't live in the cubic world or
      * when their bed or anchor still stands, else to the cubic world's arrival point.
      */
-    public static DimensionTransition home(ServerPlayer player, DimensionTransition target) {
+    public static TeleportTransition home(ServerPlayer player, TeleportTransition target) {
         if (!CubicPortals.livesInCubic(player) || Cubic.isCubic(target.newLevel().dimension())) return target;
-        if (player.getRespawnPosition() != null && !target.missingRespawnBlock()) return target;
-        ServerLevel cubic = CubicPortals.cubicLevel(player.serverLevel());
+        if (player.getRespawnConfig() != null && !target.missingRespawnBlock()) return target;
+        ServerLevel cubic = CubicPortals.cubicLevel(player.level());
         if (cubic == null || !(CubicLevel.of(cubic) instanceof ServerCubeWorld cubes)) return target;
-        return new DimensionTransition(cubic, CubicEvents.arrival(cubes), Vec3.ZERO, target.yRot(), 0.0F,
-                target.missingRespawnBlock(), target.postDimensionTransition());
+        return new TeleportTransition(cubic, CubicEvents.arrival(cubes), Vec3.ZERO, target.yRot(), 0.0F,
+                target.missingRespawnBlock(), false, java.util.Set.of(), target.postTeleportTransition());
     }
 }

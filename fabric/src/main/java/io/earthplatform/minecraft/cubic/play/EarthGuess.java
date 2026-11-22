@@ -99,12 +99,12 @@ final class EarthGuess {
                     for (ServerPlayer player : playing) {
                         if (player.isRemoved()) continue;
                         ids.add(player.getUUID());
-                        NAMES.put(player.getUUID(), player.getGameProfile().getName());
+                        NAMES.put(player.getUUID(), player.getGameProfile().name());
                         EarthCommands.wander(quiet, player, spot);
                         player.sendSystemMessage(Component.literal("Where on Earth? You're off to a random spot. Look around, then ")
                                 .append(Component.literal("[Make your guess]").withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/earth guess"))
-                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Opens the globe")))))
+                                        .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/earth guess"))
+                                        .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Opens the globe")))))
                                 .append(Component.literal(". Five minutes.")).withStyle(ChatFormatting.GOLD));
                     }
                     round = new Round(spot, ids);
