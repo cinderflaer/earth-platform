@@ -1785,7 +1785,9 @@ public final class FarRenderer {
         // Until 26.x the solid render type's state was set up here: the game's main target bound, blending
         // off, and its terrain shader applied, which under a shader pack bound the pack's terrain buffers too.
         // The game no longer keeps render state between its passes, so far terrain binds the main target itself.
-        // TODO(26.2): under a shader pack nothing binds the pack's terrain buffers; far terrain draws into whatever the pack left bound.
+        // Under a shader pack its terrain framebuffer is bound instead (what applying the pack's terrain shader did);
+        // should it not be found, far terrain draws into whatever the pack left bound.
+        if (pack) ShaderBlocks.bindPackTarget(false);
         boolean target = !pack && FarGl.beginMain();
         if (!pack && !target) return;
         GlStateManager._disableBlend(0);
@@ -3031,13 +3033,18 @@ public final class FarRenderer {
 
     private void drawWaterColumns(Camera camera, Matrix4f modelView, Matrix4f projection) {
         Vec3 position = camera.position();
-        // TODO(26.2): under a shader pack far water was drawn with the pack's translucent program (the game's
-        // translucent render type's shader); nothing gives that out now, so far water is left out under a pack.
-        if (ShaderBlocks.packInUse()) return;
         // The game's translucent shader is a pipeline now: far water draws with a program of its own from the same
         // sources, which under the Earth's curve bends with far terrain, and is drawn nearer in depth instead of shrunk.
+        // Under a shader pack it goes into the pack's translucent framebuffer, first colour output only and lit as
+        // without a pack: the pack's own water program takes uniform buffers only the game's passes fill.
         FarWaterShader shader = FarWaterShader.get();
-        if (shader == null || !FarGl.beginMain()) return;
+        if (shader == null) return;
+        boolean pack = ShaderBlocks.packInUse();
+        boolean packTarget = pack && ShaderBlocks.bindPackTarget(true);
+        if (pack && !packTarget) return;
+        boolean mainTarget = !pack && FarGl.beginMain();
+        if (!pack && !mainTarget) return;
+        int[] drawBuffers = packTarget ? ShaderBlocks.firstDrawBufferOnly() : null;
         boolean curved = curvature > 0;
         shader.begin(modelView, projection, curvature, (float) EarthView.FLAT, curved ? (float) WATER_LIFT : 0.0F);
         // With far terrain in its own depth, far hills hide the water behind them this way instead.
@@ -3120,7 +3127,8 @@ public final class FarRenderer {
         });
         shader.end();
         waterBuffers.end();
-        FarGl.endMain();
+        if (drawBuffers != null) ShaderBlocks.restoreDrawBuffers(drawBuffers);
+        if (mainTarget) FarGl.endMain();
     }
 
     /**
