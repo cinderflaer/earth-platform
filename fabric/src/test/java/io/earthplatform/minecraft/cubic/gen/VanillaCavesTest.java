@@ -9,7 +9,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.Noises;
@@ -35,7 +35,7 @@ class VanillaCavesTest {
         PositionalRandomFactory random = new XoroshiroRandomSource(SEED).forkPositional();
         HolderGetter<NormalNoise.NoiseParameters> noises = lookup.lookupOrThrow(Registries.NOISE);
         DensityFunction function = lookup.lookupOrThrow(Registries.DENSITY_FUNCTION)
-                .getOrThrow(ResourceKey.create(Registries.DENSITY_FUNCTION, ResourceLocation.withDefaultNamespace(name))).value();
+                .getOrThrow(ResourceKey.create(Registries.DENSITY_FUNCTION, Identifier.withDefaultNamespace(name))).value();
         return function.mapAll(new DensityFunction.Visitor() {
             @Override public DensityFunction apply(DensityFunction f) { return f; }
             @Override public DensityFunction.NoiseHolder visitNoise(DensityFunction.NoiseHolder holder) {

@@ -89,7 +89,7 @@ final class FarGovernor {
         if (minecraft.isPaused() || !minecraft.isWindowActive()) { INSTANCE.reset(); return; }
         int limit = minecraft.getWindow().getFramerateLimit();
         boolean capped = minecraft.options.enableVsync().get() || limit <= HEADROOM * target;
-        long now = net.minecraft.Util.getMillis();
+        long now = net.minecraft.util.Util.getMillis();
         EarthConfig.sharpnessSteps(INSTANCE.frame(now, target, capped, EarthConfig.sharpnessSteps(), EarthConfig.mostSharpnessSteps()));
     }
 

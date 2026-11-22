@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -38,7 +38,7 @@ public final class EarthStatus {
     public static final byte OFFLINE_MODE = 2;
 
     public record Payload(byte phase, byte problem, int downloading, int recent, int waitedSeconds, String place) implements CustomPacketPayload {
-        public static final Type<Payload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_status"));
+        public static final Type<Payload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_status"));
         public static final StreamCodec<FriendlyByteBuf, Payload> CODEC = StreamCodec.of((buf, p) -> {
             buf.writeByte(p.phase); buf.writeByte(p.problem); buf.writeVarInt(p.downloading); buf.writeVarInt(p.recent);
             buf.writeVarInt(p.waitedSeconds); buf.writeUtf(p.place, 256);

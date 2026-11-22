@@ -32,7 +32,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.SpawnPlacements;
@@ -47,7 +47,7 @@ public final class EarthPlatformFabric implements ModInitializer {
     public static final Map<EntityType<?>, SpawnPlacements.SpawnPredicate<?>> SPAWN_RULES = new IdentityHashMap<>();
 
     /** Runs /earth after every other mod's commands, as NeoForge's lowest priority does. */
-    private static final ResourceLocation LAST = ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "last");
+    private static final Identifier LAST = Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "last");
 
     @Override
     public void onInitialize() {

@@ -18,7 +18,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * What the globe picker shows: NASA's Blue Marble for the whole planet, and close up, Web Mercator tiles drawn from
@@ -32,7 +32,7 @@ final class GlobeImagery {
     /** Land cover colours the tiles from this zoom on, fully from {@link #COVER_FULL}. */
     private static final int COVER_FROM = 7, COVER_FULL = 10;
     private static final int MAX_TILES = 192, WORKERS = 6;
-    private static final ResourceLocation BASE = ResourceLocation.fromNamespaceAndPath("earthplatform", "textures/globe/blue_marble.jpg");
+    private static final Identifier BASE = Identifier.fromNamespaceAndPath("earthplatform", "textures/globe/blue_marble.jpg");
     private static SoftReference<Base> base = new SoftReference<>(null);
 
     private record Base(int[] argb, int width, int height) {}

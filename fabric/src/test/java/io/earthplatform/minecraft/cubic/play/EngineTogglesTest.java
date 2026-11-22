@@ -254,7 +254,7 @@ class EngineTogglesTest {
     }
 
     @Test void everySodiumOptionIdIsAValidLowercaseResourcePathAndUnique() throws IOException {
-        // The game's rule for a ResourceLocation path, which Iris happens to switch off: [a-z0-9/._-].
+        // The game's rule for a Identifier path, which Iris happens to switch off: [a-z0-9/._-].
         java.util.regex.Pattern valid = java.util.regex.Pattern.compile("[a-z0-9/._-]+");
         Set<String> seen = new HashSet<>();
         for (Toggle toggle : EngineToggles.ALL) {

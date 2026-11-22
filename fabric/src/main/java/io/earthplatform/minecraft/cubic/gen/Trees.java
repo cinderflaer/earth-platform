@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.valueproviders.IntProvider;
 import net.minecraft.world.level.block.HugeMushroomBlock;
 import net.minecraft.world.level.block.LeavesBlock;
@@ -373,7 +373,7 @@ final class Trees {
     private static boolean treeLike(ConfiguredFeature<?, ?> feature) {
         Feature<?> kind = feature.feature();
         if (kind == Feature.TREE || kind == Feature.HUGE_RED_MUSHROOM || kind == Feature.HUGE_BROWN_MUSHROOM || feature.config() instanceof TreeConfiguration) return true;
-        ResourceLocation id = BuiltInRegistries.FEATURE.getKey(kind);
+        Identifier id = BuiltInRegistries.FEATURE.getKey(kind);
         return id != null && !id.getNamespace().equals("minecraft");
     }
 

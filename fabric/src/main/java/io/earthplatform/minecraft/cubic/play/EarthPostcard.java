@@ -20,7 +20,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -38,7 +38,7 @@ public final class EarthPostcard {
 
     /** Where a player stands, for their postcard: {@code meters} is their height above sea level. */
     public record Payload(double latitude, double longitude, int meters) implements CustomPacketPayload {
-        public static final Type<Payload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_postcard"));
+        public static final Type<Payload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_postcard"));
         public static final StreamCodec<FriendlyByteBuf, Payload> CODEC = StreamCodec.of(
                 (buf, p) -> { buf.writeDouble(p.latitude); buf.writeDouble(p.longitude); buf.writeVarInt(p.meters); },
                 buf -> new Payload(buf.readDouble(), buf.readDouble(), buf.readVarInt()));

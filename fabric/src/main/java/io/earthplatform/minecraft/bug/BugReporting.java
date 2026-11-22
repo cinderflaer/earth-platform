@@ -5,7 +5,7 @@ import io.earthplatform.minecraft.platform.Loader;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;

@@ -260,7 +260,7 @@ public final class FarServer {
         if (fine && (Math.abs(bx - session.preparedFineX) > PREVIEW_MOVE || Math.abs(bz - session.preparedFineZ) > PREVIEW_MOVE)) {
             session.preparedFineX = session.preparedX = bx;
             session.preparedFineZ = session.preparedZ = bz;
-            net.minecraft.Util.ioPool().execute(() -> {
+            net.minecraft.util.Util.ioPool().execute(() -> {
                 try { generator.preparePreview(bx, bz); }
                 catch (RuntimeException failure) { EarthPlatformMod.LOGGER.warn("Could not fetch the far stand-ins' data", failure); }
             });
@@ -268,7 +268,7 @@ public final class FarServer {
             // The little they read, all at once, rather than piece by piece as the few threads making them come to it.
             session.preparedX = bx;
             session.preparedZ = bz;
-            net.minecraft.Util.ioPool().execute(() -> {
+            net.minecraft.util.Util.ioPool().execute(() -> {
                 try { generator.preparePreview(bx, bz, Far.BACKDROP_LEVEL); }
                 catch (RuntimeException failure) { EarthPlatformMod.LOGGER.warn("Could not fetch the far stand-ins' data", failure); }
             });

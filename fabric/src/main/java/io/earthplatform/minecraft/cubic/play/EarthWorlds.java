@@ -25,7 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -36,13 +36,13 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
@@ -60,10 +60,10 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class EarthWorlds {
     public static final ResourceKey<WorldPreset> PRESET =
-            ResourceKey.create(Registries.WORLD_PRESET, ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth"));
+            ResourceKey.create(Registries.WORLD_PRESET, Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth"));
     /** The empty structure set tag that marks an Earth world's stand-in overworld. */
     public static final TagKey<StructureSet> MARKER =
-            TagKey.create(Registries.STRUCTURE_SET, ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_world"));
+            TagKey.create(Registries.STRUCTURE_SET, Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_world"));
     private static final String WELCOMED = "earthplatform.welcomed";
     /** Where players wait in the stand-in overworld, above everything. */
     private static final Vec3 HOLD = new Vec3(0.5, 300, 0.5);

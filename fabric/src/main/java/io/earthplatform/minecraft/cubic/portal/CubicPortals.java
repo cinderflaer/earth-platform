@@ -9,7 +9,7 @@ import io.earthplatform.minecraft.cubic.mixin.NetherPortalAccess;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
-import net.minecraft.BlockUtil;
+import net.minecraft.util.BlockUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;

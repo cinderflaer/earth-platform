@@ -264,7 +264,7 @@ class FarCoverTest {
 
     @Test void everyBlockTheGeneratorLaysAsGroundIsNatural() {
         for (var ground : io.earthplatform.geography.globe.GroundPalette.Ground.values()) {
-            Block block = BuiltInRegistries.BLOCK.get(net.minecraft.resources.ResourceLocation.withDefaultNamespace(ground.id()));
+            Block block = BuiltInRegistries.BLOCK.get(net.minecraft.resources.Identifier.withDefaultNamespace(ground.id()));
             assertTrue(FarMesher.natural(block.defaultBlockState()), ground.id());
         }
         for (Block block : List.of(Blocks.GRASS_BLOCK, Blocks.DIRT, Blocks.PODZOL, Blocks.MUD, Blocks.MOSS_BLOCK, Blocks.CLAY, Blocks.SNOW_BLOCK,

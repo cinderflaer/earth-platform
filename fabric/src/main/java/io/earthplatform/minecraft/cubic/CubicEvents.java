@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 import java.util.concurrent.CompletableFuture;
 import io.earthplatform.minecraft.cubic.gen.SurfaceGenerator;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -294,7 +294,7 @@ public final class CubicEvents {
             ServerPlayer player = context.getSource().getPlayerOrException();
             if (!(CubicLevel.of(player.level()) instanceof ServerCubeWorld cubes)) return 0;
             var pos = player.blockPosition();
-            java.util.concurrent.CompletableFuture.supplyAsync(() -> cubes.generator().structuresAt(pos.getX(), pos.getY(), pos.getZ()), net.minecraft.Util.backgroundExecutor())
+            java.util.concurrent.CompletableFuture.supplyAsync(() -> cubes.generator().structuresAt(pos.getX(), pos.getY(), pos.getZ()), net.minecraft.util.Util.backgroundExecutor())
                     .thenAcceptAsync(text -> context.getSource().sendSuccess(() -> Component.literal(text), false), context.getSource().getServer());
             return 1;
         }));
@@ -350,14 +350,14 @@ public final class CubicEvents {
     }
 
     /** Finds the nearest vanilla structure of a kind in the cubic world, off the server thread, as /locate does elsewhere. */
-    private static int locate(CommandSourceStack source, net.minecraft.resources.ResourceLocation structure) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    private static int locate(CommandSourceStack source, net.minecraft.resources.Identifier structure) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         if (!(CubicLevel.of(player.level()) instanceof ServerCubeWorld cubes)) { source.sendFailure(Component.literal("Not in the cubic world.")); return 0; }
         var from = player.blockPosition();
         source.sendSuccess(() -> Component.literal("Looking for " + structure + "...").withStyle(ChatFormatting.GRAY), false);
         var wanted = source.getServer().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE).get(structure);
         if (wanted == null) { source.sendFailure(Component.literal("No structure " + structure)); return 0; }
-        java.util.concurrent.CompletableFuture.supplyAsync(() -> cubes.generator().locate(s -> s == wanted, from.getX(), from.getZ(), 100), net.minecraft.Util.backgroundExecutor())
+        java.util.concurrent.CompletableFuture.supplyAsync(() -> cubes.generator().locate(s -> s == wanted, from.getX(), from.getZ(), 100), net.minecraft.util.Util.backgroundExecutor())
                 .thenAcceptAsync(found -> {
                     if (found == null) source.sendFailure(Component.literal("No " + structure + " within 1600 blocks."));
                     else source.sendSuccess(() -> Component.literal(structure + " at " + found.toShortString() + ", "
@@ -451,7 +451,7 @@ public final class CubicEvents {
     }
 
     /** Test helper: stand next to the nearest loaded block of a kind, facing it. */
-    private static int approach(CommandSourceStack source, net.minecraft.resources.ResourceLocation id) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+    private static int approach(CommandSourceStack source, net.minecraft.resources.Identifier id) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         var block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(id);
         if (!(CubicLevel.of(player.level()) instanceof ServerCubeWorld cubes)) { source.sendFailure(Component.literal("Not in the cubic world.")); return 0; }

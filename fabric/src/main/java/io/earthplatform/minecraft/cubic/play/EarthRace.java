@@ -16,7 +16,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
@@ -64,7 +64,7 @@ final class EarthRace {
             List<EarthPlaces.Place> places = EarthPlaces.all();
             place = places.get(RandomSource.create().nextInt(places.size()));
         }
-        race = new Race(place, net.minecraft.Util.getMillis());
+        race = new Race(place, net.minecraft.util.Util.getMillis());
         OUT.clear();
         server.getPlayerList().broadcastSystemMessage(Component.literal("Race! First to reach " + place.label() + " ")
                 .append(Component.literal(String.format(Locale.ROOT, "(%.4f, %.4f)", place.latitude(), place.longitude())).withStyle(ChatFormatting.GRAY))
@@ -102,7 +102,7 @@ final class EarthRace {
             if (here == null) continue;
             if (EarthRules.kilometers(here.latitude(), here.longitude(), current.place.latitude(), current.place.longitude()) > FINISH) continue;
             race = null;
-            long minutes = (net.minecraft.Util.getMillis() - current.started) / 60_000;
+            long minutes = (net.minecraft.util.Util.getMillis() - current.started) / 60_000;
             server.getPlayerList().broadcastSystemMessage(Component.literal(player.getGameProfile().getName() + " won the race to "
                     + current.place.label() + " in " + minutes + " minutes!").withStyle(ChatFormatting.GOLD), false);
             ItemStack reward = reward();
@@ -118,7 +118,7 @@ final class EarthRace {
     static ItemStack reward() {
         String[] parts = EarthConfig.RACE_REWARD.get().trim().split("\\s+");
         if (parts.length == 0 || parts[0].isEmpty()) return ItemStack.EMPTY;
-        ResourceLocation id = ResourceLocation.tryParse(parts[0]);
+        Identifier id = Identifier.tryParse(parts[0]);
         if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) {
             EarthPlatformMod.LOGGER.warn("raceReward names no item: {}", parts[0]);
             return ItemStack.EMPTY;

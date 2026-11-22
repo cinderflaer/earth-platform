@@ -3,7 +3,7 @@ package io.earthplatform.minecraft.cubic.mixin;
 import io.earthplatform.minecraft.cubic.CubeWorld;
 import io.earthplatform.minecraft.cubic.CubicLevel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import org.spongepowered.asm.mixin.Mixin;

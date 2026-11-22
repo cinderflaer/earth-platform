@@ -17,7 +17,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -44,7 +44,7 @@ public final class EarthExplorer {
     static final int ROUND_STEPS = 36;
     /** Where each player on the Earth was at the last look. */
     private static final Map<UUID, Seen> LAST = new HashMap<>();
-    private static final Map<String, ResourceLocation> IDS = new HashMap<>();
+    private static final Map<String, Identifier> IDS = new HashMap<>();
 
     private record Seen(ResourceKey<Level> level, double x, double z, GeoPoint point) {}
 
@@ -121,7 +121,7 @@ public final class EarthExplorer {
 
     /** Gives a player a criterion of one of the Earth advancements, if they haven't got it. */
     static void award(ServerPlayer player, String name, String criterion) {
-        ResourceLocation id = IDS.computeIfAbsent(name, path -> ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth/" + path));
+        Identifier id = IDS.computeIfAbsent(name, path -> Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth/" + path));
         AdvancementHolder advancement = player.server.getAdvancements().get(id);
         if (advancement != null) player.getAdvancements().award(advancement, criterion);
     }

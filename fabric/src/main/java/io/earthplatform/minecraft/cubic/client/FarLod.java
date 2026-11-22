@@ -1,6 +1,6 @@
 package io.earthplatform.minecraft.cubic.client;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import io.earthplatform.minecraft.EarthPlatformMod;
 import io.earthplatform.minecraft.platform.Loader;

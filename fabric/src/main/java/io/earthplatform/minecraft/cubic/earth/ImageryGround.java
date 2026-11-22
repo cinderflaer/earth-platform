@@ -6,7 +6,7 @@ import io.earthplatform.geography.globe.MercatorGrid;
 import io.earthplatform.geography.globe.WorldCoverSource;
 import io.earthplatform.minecraft.cubic.gen.SurfaceGenerator.Surface;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
@@ -29,7 +29,7 @@ final class ImageryGround {
     private static final BlockState[] BLOCKS = new BlockState[GroundPalette.Ground.values().length];
     static {
         for (GroundPalette.Ground ground : GroundPalette.Ground.values())
-            BLOCKS[ground.ordinal()] = BuiltInRegistries.BLOCK.get(ResourceLocation.withDefaultNamespace(ground.id())).defaultBlockState();
+            BLOCKS[ground.ordinal()] = BuiltInRegistries.BLOCK.get(Identifier.withDefaultNamespace(ground.id())).defaultBlockState();
     }
 
     private final ImagerySource imagery;

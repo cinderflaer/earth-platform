@@ -1,6 +1,6 @@
 package io.earthplatform.minecraft.cubic.play.client;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -16,7 +16,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceProvider;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -38,7 +38,7 @@ final class CloudVolume {
     private static final int TEXTURE_SIZE = 256;
     /** The texture unit the 3D noise is bound to while the clouds draw. */
     private static final int NOISE_UNIT = 5;
-    private static final ResourceLocation[] textures = new ResourceLocation[3];
+    private static final Identifier[] textures = new Identifier[3];
     private static ShaderInstance shader, baseShader;
     private static boolean shaderFailed;
     private static int noiseTexture;
@@ -152,13 +152,13 @@ final class CloudVolume {
     private static ShaderInstance load(ResourceProvider resources) throws java.io.IOException {
         return new ShaderInstance(location -> resources.getResource(
                 location.getPath().startsWith("shaders/core/earthplatform_weather")
-                        ? ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, location.getPath()) : location),
+                        ? Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, location.getPath()) : location),
                 "earthplatform_weather", DefaultVertexFormat.POSITION_TEX_COLOR);
     }
 
     /** Bank {@code kind}'s coverage texture, made on first use from {@link CloudField#density}. */
-    private static ResourceLocation texture(int kind) {
-        ResourceLocation id = textures[kind];
+    private static Identifier texture(int kind) {
+        Identifier id = textures[kind];
         if (id != null) return id;
         NativeImage image = new NativeImage(TEXTURE_SIZE, TEXTURE_SIZE, false);
         for (int y = 0; y < TEXTURE_SIZE; y++)
@@ -166,7 +166,7 @@ final class CloudVolume {
                 int alpha = (int) Math.round(CloudField.density(kind, (x + .5) / TEXTURE_SIZE, (y + .5) / TEXTURE_SIZE) * 255);
                 image.setPixelRGBA(x, y, alpha << 24 | 0xFFFFFF);
             }
-        id = ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "weather_cloud_" + kind);
+        id = Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "weather_cloud_" + kind);
         var textureManager = Minecraft.getInstance().getTextureManager();
         textureManager.register(id, new DynamicTexture(image));
         textureManager.getTexture(id).bind();

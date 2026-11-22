@@ -7,7 +7,7 @@ import io.earthplatform.minecraft.cubic.play.EarthWorlds;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.function.Consumer;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import io.earthplatform.minecraft.cubic.client.ClientCubeWorld;
 import net.minecraft.client.gui.GuiGraphics;

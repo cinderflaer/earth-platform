@@ -18,7 +18,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.game.CommonPlayerSpawnInfo;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 
 /** Join and respawn packets must keep the vanilla layout, which Replay Mod rewrites every recording's join packet by. */
 class SpawnInfoWireTest {
-    private static final ResourceKey<Level> CUBIC = ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath("earthplatform", "cubic"));
+    private static final ResourceKey<Level> CUBIC = ResourceKey.create(Registries.DIMENSION, Identifier.fromNamespaceAndPath("earthplatform", "cubic"));
     private static RegistryAccess access;
     private static Holder<DimensionType> type;
 

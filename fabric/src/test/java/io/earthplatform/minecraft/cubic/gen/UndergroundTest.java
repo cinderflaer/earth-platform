@@ -73,7 +73,7 @@ class UndergroundTest {
                 cubes++;
                 // Every block entity a cube starts with sits on a block that takes it.
                 for (CompoundTag tag : blockEntities.subList(before, blockEntities.size())) {
-                    var type = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(net.minecraft.resources.ResourceLocation.parse(tag.getString("id")));
+                    var type = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(net.minecraft.resources.Identifier.parse(tag.getString("id")));
                     assertTrue(type != null && type.isValid(section.getBlockState(tag.getInt("x") & 15, tag.getInt("y") & 15, tag.getInt("z") & 15)), "block under " + tag);
                 }
                 for (int i = 0; i < 4096; i++) {

@@ -65,7 +65,7 @@ public final class EarthRules {
      */
     static boolean pay(CommandSourceStack source, ServerPlayer player, double latitude, double longitude) {
         if (source.getPlayer() != player || source.hasPermission(2) || player.isCreative() || player.isSpectator()) return true;
-        long now = net.minecraft.Util.getMillis();
+        long now = net.minecraft.util.Util.getMillis();
         long next = NEXT_TRIP.getOrDefault(player.getUUID(), 0L);
         if (now < next) {
             source.sendFailure(Component.literal("You can travel again in " + ((next - now + 999) / 1000) + " s."));

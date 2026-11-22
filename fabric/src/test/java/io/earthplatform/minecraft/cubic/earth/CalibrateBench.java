@@ -65,7 +65,7 @@ class CalibrateBench {
             try (var in = CalibrateBench.class.getResourceAsStream("/data/earthplatform/worldgen/biome/" + name + ".json")) {
                 var json = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in));
                 Biome biome = Biome.DIRECT_CODEC.parse(net.minecraft.resources.RegistryOps.create(com.mojang.serialization.JsonOps.INSTANCE, lookup), json).getOrThrow();
-                biomes.register(net.minecraft.resources.ResourceKey.create(Registries.BIOME, net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("earthplatform", name)),
+                biomes.register(net.minecraft.resources.ResourceKey.create(Registries.BIOME, net.minecraft.resources.Identifier.fromNamespaceAndPath("earthplatform", name)),
                         biome, RegistrationInfo.BUILT_IN);
             }
         }

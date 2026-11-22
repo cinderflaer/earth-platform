@@ -2,7 +2,7 @@ package io.earthplatform.minecraft.cubic.client;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import java.nio.FloatBuffer;
 import java.nio.file.Files;

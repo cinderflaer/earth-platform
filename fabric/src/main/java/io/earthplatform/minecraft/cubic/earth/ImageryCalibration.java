@@ -29,7 +29,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.EmptyBlockGetter;
@@ -57,7 +57,7 @@ public final class ImageryCalibration {
     private static final Map<BlockState, Integer> GROUND_RGB = new HashMap<>();
     static {
         for (GroundPalette.Ground ground : GroundPalette.Ground.values())
-            GROUND_RGB.put(BuiltInRegistries.BLOCK.get(ResourceLocation.withDefaultNamespace(ground.id())).defaultBlockState(), ground.rgb);
+            GROUND_RGB.put(BuiltInRegistries.BLOCK.get(Identifier.withDefaultNamespace(ground.id())).defaultBlockState(), ground.rgb);
     }
 
     private ImageryCalibration() {}

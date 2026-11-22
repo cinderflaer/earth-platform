@@ -42,7 +42,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -215,7 +215,7 @@ public final class EarthGenerator extends SurfaceGenerator {
         darkForest = holder(biomes, Biomes.DARK_FOREST); flowerForest = holder(biomes, Biomes.FLOWER_FOREST);
         cherryGrove = holder(biomes, Biomes.CHERRY_GROVE); bambooJungle = holder(biomes, Biomes.BAMBOO_JUNGLE);
         sunflowerPlains = holder(biomes, Biomes.SUNFLOWER_PLAINS);
-        glacialLake = holder(biomes, ResourceKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath("earthplatform", "glacial_lake")));
+        glacialLake = holder(biomes, ResourceKey.create(Registries.BIOME, Identifier.fromNamespaceAndPath("earthplatform", "glacial_lake")));
         // Rock layers and towers are found on the tiles as they are: both look over hundreds of metres to kilometres
         // at every far level, where working out the ground under towns would cost more than the rest of the far
         // terrain, and both judge rises of tens of metres or more, which a town's roofs don't make.

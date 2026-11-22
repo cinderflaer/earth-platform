@@ -13,7 +13,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -44,7 +44,7 @@ public final class EarthMap {
     public static final byte SHOW_COMPASS = 8;
 
     public record Payload(byte kind, double latitude, double longitude) implements CustomPacketPayload {
-        public static final Type<Payload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_map"));
+        public static final Type<Payload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_map"));
         public static final StreamCodec<FriendlyByteBuf, Payload> CODEC = StreamCodec.of(
                 (buf, p) -> { buf.writeByte(p.kind); buf.writeDouble(p.latitude); buf.writeDouble(p.longitude); },
                 buf -> new Payload(buf.readByte(), buf.readDouble(), buf.readDouble()));
@@ -56,7 +56,7 @@ public final class EarthMap {
 
     /** Where the other players on the Earth are, sent just before a map opens. */
     public record Players(List<Other> players) implements CustomPacketPayload {
-        public static final Type<Players> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_map_players"));
+        public static final Type<Players> TYPE = new Type<>(Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth_map_players"));
         public static final StreamCodec<FriendlyByteBuf, Players> CODEC = StreamCodec.of(
                 (buf, p) -> {
                     buf.writeVarInt(p.players.size());

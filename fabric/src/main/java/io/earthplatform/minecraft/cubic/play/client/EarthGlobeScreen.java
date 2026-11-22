@@ -13,7 +13,7 @@ import java.util.Locale;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -21,7 +21,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.Items;
 import org.lwjgl.glfw.GLFW;
@@ -37,7 +37,7 @@ public final class EarthGlobeScreen extends Screen {
     private static final double LIMIT = 80;
     private static final double MAX_ZOOM = 12.5;
     private static final int TOP = 24, BOTTOM = 56;
-    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("earthplatform", "dynamic/globe_picker");
+    private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath("earthplatform", "dynamic/globe_picker");
     /** Translation keys of the survival map. */
     static final String LOOK = "earthplatform.map.look";
 

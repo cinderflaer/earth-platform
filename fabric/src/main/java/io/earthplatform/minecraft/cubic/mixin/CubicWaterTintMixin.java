@@ -9,7 +9,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,7 +29,7 @@ abstract class CubicWaterTintMixin {
             Biomes.OCEAN, 0x25467F, Biomes.DEEP_OCEAN, 0x213D72, Biomes.COLD_OCEAN, 0x24435F,
             Biomes.DEEP_COLD_OCEAN, 0x1F3A55, Biomes.DEEP_LUKEWARM_OCEAN, 0x234478,
             // Lakes fed by glaciers are milky turquoise with rock flour, as Lake Louise and Moraine Lake are.
-            ResourceKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath("earthplatform", "glacial_lake")), 0x52B8BE);
+            ResourceKey.create(Registries.BIOME, Identifier.fromNamespaceAndPath("earthplatform", "glacial_lake")), 0x52B8BE);
 
     // The water colour resolver lambda: NeoForge keeps its source name, Fabric's named jar its intermediary one.
     @WrapOperation(method = {"lambda$static$1(Lnet/minecraft/world/level/biome/Biome;DD)I", "method_23790(Lnet/minecraft/world/level/biome/Biome;DD)I"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/biome/Biome;getWaterColor()I"))

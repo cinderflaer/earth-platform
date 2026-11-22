@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.17.21'
+    id 'net.fabricmc.fabric-loom' version '1.19.4'
     id 'java'
 }
 
@@ -9,7 +9,7 @@ version = mod_version
 group = mod_group_id
 base { archivesName = mod_id + '-fabric' }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 sourceSets.main {
     java.srcDirs = ['src/main/java', '../geography/src/main/java']
@@ -22,16 +22,9 @@ repositories {
         url = 'https://raw.githubusercontent.com/Fuzss/modresources/main/maven/'
         content { includeGroup 'fuzs.forgeconfigapiport' }
     }
-    maven { url = 'https://maven.parchmentmc.org/' ; content { includeGroup 'org.parchmentmc.data' } }
 }
 
 loom {
-    mixin {
-        // tiny-remapper's mixin remapping writes @Redirect's single @At as an array, which MixinExtras
-        // can't read; the annotation processor's refmap keeps the annotations as written.
-        useLegacyMixinAp = true
-        defaultRefmapName = 'earthplatform.refmap.json'
-    }
     runs {
         client {
             client()
@@ -55,8 +48,8 @@ def fabricSodiumJar = providers.gradleProperty('installedFabricSodiumJar').orEls
 
 // The build reads them by SHA-256 only (docs/BUILDING.md).
 def fabricInputs = [
-        (fabricIrisJar): '0ceb694040b4628bf3fa02286cfe5f0db833195669ab07f8caa4001359763eff',
-        (fabricSodiumJar): '3d43c14985a4deb19c654aad3393b454cf57e1ebcbba86c4ae6a98dfc60eca2d',
+        (fabricIrisJar): 'f1f7ab57c974d193ba33aa285864a0ded949216f402116fceaf4dc7739b4dd7c',
+        (fabricSodiumJar): '16a5e91db49750f8c046ecca3b8f2af5a28ea6f9b6581b42f123ca8fda20864f',
 ]
 def verifyFabricInputs = tasks.register('verifyFabricInputs') {
     def files = fabricInputs.collectEntries { path, sum -> [(path.getOrNull()): sum] }
@@ -100,13 +93,9 @@ tasks.matching { it.name == 'runServerCourier' }.configureEach { dependsOn stage
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    mappings loom.layered {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft_version}:${parchment_mappings_version}@zip")
-    }
-    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
-    modImplementation "fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${forge_config_api_port_version}"
+    implementation "net.fabricmc:fabric-loader:${loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    implementation "fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${forge_config_api_port_version}"
     include "fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${forge_config_api_port_version}"
 
     // Nullability annotations the game code uses; vanilla Fabric does not ship them.
@@ -121,8 +110,8 @@ dependencies {
     // The optional Bug Courier jar: compile against it, never bundle it.
     compileOnly files(bugCourierJar.map { file(it) })
 
-    modCompileOnly files(fabricIrisJar.map { file(it) })
-    modCompileOnly files(fabricSodiumJar.map { file(it) })
+    compileOnly files(fabricIrisJar.map { file(it) })
+    compileOnly files(fabricSodiumJar.map { file(it) })
 }
 
 processResources {
@@ -185,7 +174,8 @@ tasks.named('jar', Jar) {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.release = 21
+    options.release = 25
+    options.compilerArgs += ['-Xmaxerrs', '100000', '-Xmaxwarns', '1']
 }
 
 // The unit tests compile against the Fabric Iris and Sodium jars but never run with them, and read

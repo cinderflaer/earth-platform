@@ -12,7 +12,7 @@ import net.caffeinemc.mods.sodium.api.config.structure.ConfigBuilder;
 import net.caffeinemc.mods.sodium.api.config.structure.OptionGroupBuilder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * An Earth Platform page in Sodium's Video Settings, beside Sodium's own pages, with the client settings
@@ -154,8 +154,8 @@ public final class SodiumOptions implements ConfigEntryPoint {
         return String.format(Locale.ROOT, "%d km (%d mi)", km, Math.round(km * 0.621371));
     }
 
-    private static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, path);
+    private static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, path);
     }
 
     private static Component name(String key) {

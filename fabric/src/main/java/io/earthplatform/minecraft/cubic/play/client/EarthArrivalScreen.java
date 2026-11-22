@@ -1,7 +1,7 @@
 package io.earthplatform.minecraft.cubic.play.client;
 
 import io.earthplatform.minecraft.cubic.play.EarthStatus;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.GenericMessageScreen;

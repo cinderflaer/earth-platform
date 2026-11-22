@@ -96,7 +96,7 @@ class FirstVisitBench {
             try (var in = FirstVisitBench.class.getResourceAsStream("/data/earthplatform/worldgen/biome/" + biome + ".json")) {
                 var json = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in));
                 Biome parsed = Biome.DIRECT_CODEC.parse(net.minecraft.resources.RegistryOps.create(com.mojang.serialization.JsonOps.INSTANCE, lookup), json).getOrThrow();
-                biomes.register(net.minecraft.resources.ResourceKey.create(Registries.BIOME, net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("earthplatform", biome)),
+                biomes.register(net.minecraft.resources.ResourceKey.create(Registries.BIOME, net.minecraft.resources.Identifier.fromNamespaceAndPath("earthplatform", biome)),
                         parsed, RegistrationInfo.BUILT_IN);
             }
         }

@@ -18,7 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.phys.Vec3;
 import java.util.Arrays;
@@ -39,10 +39,10 @@ import org.lwjgl.opengl.GL11;
  * {@code earthplatform.clouds.layered} three thick banks draw instead (see {@link CloudVolume}).
  */
 public final class EarthClouds {
-    private static final ResourceLocation TEXTURE = ResourceLocation.withDefaultNamespace("textures/environment/clouds.png");
+    private static final Identifier TEXTURE = Identifier.withDefaultNamespace("textures/environment/clouds.png");
     /** Vanilla's cloud texture made white throughout, so blurring it doesn't darken the edges (its clear pixels are black). */
-    private static final ResourceLocation SOFT = ResourceLocation.fromNamespaceAndPath("earthplatform", "earth_clouds");
-    private static ResourceLocation softTexture;
+    private static final Identifier SOFT = Identifier.fromNamespaceAndPath("earthplatform", "earth_clouds");
+    private static Identifier softTexture;
     private static final boolean IRIS = Loader.INSTANCE.isModLoaded("iris");
     /** Sea level: 0 m is the water surface at Y 63. */
     private static final double SEA = 63;
@@ -84,7 +84,7 @@ public final class EarthClouds {
     }
 
     /** The white cloud texture, made from vanilla's on first use; vanilla's itself if that fails. */
-    private static ResourceLocation soft() {
+    private static Identifier soft() {
         if (softTexture != null) return softTexture;
         softTexture = TEXTURE;
         var minecraft = Minecraft.getInstance();
@@ -157,7 +157,7 @@ public final class EarthClouds {
         modelView.identity();
         RenderSystem.applyModelViewMatrix();
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        ResourceLocation texture = soft();
+        Identifier texture = soft();
         RenderSystem.setShaderTexture(0, texture);
         Minecraft.getInstance().getTextureManager().getTexture(texture).bind();
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);

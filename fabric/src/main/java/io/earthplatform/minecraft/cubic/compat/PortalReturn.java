@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -24,7 +24,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class PortalReturn {
     public static final String AETHER_RETURN = "earthplatform:aether_return";
-    private static final ResourceLocation AETHER = ResourceLocation.fromNamespaceAndPath("aether", "the_aether");
+    private static final Identifier AETHER = Identifier.fromNamespaceAndPath("aether", "the_aether");
 
     private PortalReturn() {}
 

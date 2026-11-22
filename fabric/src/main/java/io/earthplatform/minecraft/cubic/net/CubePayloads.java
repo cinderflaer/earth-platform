@@ -13,7 +13,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -23,7 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 public final class CubePayloads {
     private CubePayloads() {}
 
-    private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, path); }
+    private static Identifier id(String path) { return Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, path); }
 
     /** One full cube: vanilla section bytes plus block entity update tags. */
     public record CubeData(int x, int y, int z, byte[] section, List<CompoundTag> blockEntities) implements CustomPacketPayload {

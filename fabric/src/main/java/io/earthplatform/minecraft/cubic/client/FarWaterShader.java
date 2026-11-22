@@ -7,7 +7,7 @@ import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceProvider;
 
 /**
@@ -45,7 +45,7 @@ final class FarWaterShader {
     static ShaderInstance load(ResourceProvider resources) throws IOException {
         return new ShaderInstance(location -> resources.getResource(
                 location.getPath().startsWith("shaders/core/earthplatform_water")
-                        ? ResourceLocation.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, location.getPath()) : location),
+                        ? Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, location.getPath()) : location),
                 "earthplatform_water", DefaultVertexFormat.BLOCK);
     }
 }

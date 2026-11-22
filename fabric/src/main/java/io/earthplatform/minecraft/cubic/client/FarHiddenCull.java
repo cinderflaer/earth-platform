@@ -1,6 +1,6 @@
 package io.earthplatform.minecraft.cubic.client;
 
-import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import io.earthplatform.minecraft.EarthPlatformMod;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;

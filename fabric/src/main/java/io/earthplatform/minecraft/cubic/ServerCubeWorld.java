@@ -48,7 +48,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.block.Block;
@@ -344,7 +344,7 @@ public final class ServerCubeWorld extends CubeWorld {
         CompletableFuture<?>[] parts = new CompletableFuture<?>[9];
         for (int i = 0; i < parts.length; i++) {
             int px = x + (i % 3 - 1) * READY_REACH, pz = z + (i / 3 - 1) * READY_REACH;
-            parts[i] = CompletableFuture.runAsync(() -> generator.surfaceY(px, pz), net.minecraft.Util.ioPool());
+            parts[i] = CompletableFuture.runAsync(() -> generator.surfaceY(px, pz), net.minecraft.util.Util.ioPool());
         }
         return CompletableFuture.allOf(parts).handle((ready, missing) -> (Void) null).completeOnTimeout(null, READY_SECONDS, TimeUnit.SECONDS);
     }
@@ -510,7 +510,7 @@ public final class ServerCubeWorld extends CubeWorld {
      */
     private void noteLateness() {
         var host = server.getServer();
-        if (host.isDedicatedServer() && net.minecraft.Util.getNanos() - host.getNextTickTime() > LATE_NANOS) TickShare.late();
+        if (host.isDedicatedServer() && net.minecraft.util.Util.getNanos() - host.getNextTickTime() > LATE_NANOS) TickShare.late();
     }
 
     private void tickCubes() {

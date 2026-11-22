@@ -94,7 +94,7 @@ public final class EngineToggles {
         }
 
         /**
-         * The path of the option's id on Sodium's page: lowercase, as the game's {@code ResourceLocation} requires
+         * The path of the option's id on Sodium's page: lowercase, as the game's {@code Identifier} requires
          * ({@code [a-z0-9/._-]}), and apart from {@link #key()} (the settings file's name) and the language key.
          * Iris switches the game's check off, so with it a wrong id passes; without it, registering the option throws and
          * the game stops at start-up.

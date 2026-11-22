@@ -71,7 +71,7 @@ class DataRulesBench {
             try (var in = DataRulesBench.class.getResourceAsStream("/data/earthplatform/worldgen/biome/" + name + ".json")) {
                 var json = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in));
                 Biome biome = Biome.DIRECT_CODEC.parse(net.minecraft.resources.RegistryOps.create(com.mojang.serialization.JsonOps.INSTANCE, lookup), json).getOrThrow();
-                biomes.register(net.minecraft.resources.ResourceKey.create(Registries.BIOME, net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("earthplatform", name)),
+                biomes.register(net.minecraft.resources.ResourceKey.create(Registries.BIOME, net.minecraft.resources.Identifier.fromNamespaceAndPath("earthplatform", name)),
                         biome, RegistrationInfo.BUILT_IN);
             }
         }
@@ -145,9 +145,9 @@ class DataRulesBench {
                 String next = open.pop();
                 if (!seen.add(next)) continue;
                 if (next.startsWith("#")) open.addAll(raw.getOrDefault(next.substring(1), List.of()).stream().map(v -> v.startsWith("#") ? v : v).toList());
-                else blocks.getOptional(net.minecraft.resources.ResourceLocation.parse(next)).ifPresent(block -> members.add(blocks.wrapAsHolder(block)));
+                else blocks.getOptional(net.minecraft.resources.Identifier.parse(next)).ifPresent(block -> members.add(blocks.wrapAsHolder(block)));
             }
-            tags.put(net.minecraft.tags.TagKey.create(Registries.BLOCK, net.minecraft.resources.ResourceLocation.parse(name)), members);
+            tags.put(net.minecraft.tags.TagKey.create(Registries.BLOCK, net.minecraft.resources.Identifier.parse(name)), members);
         }
         blocks.bindTags(tags);
     }
