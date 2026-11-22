@@ -103,7 +103,7 @@ final class EarthRace {
             if (EarthRules.kilometers(here.latitude(), here.longitude(), current.place.latitude(), current.place.longitude()) > FINISH) continue;
             race = null;
             long minutes = (net.minecraft.util.Util.getMillis() - current.started) / 60_000;
-            server.getPlayerList().broadcastSystemMessage(Component.literal(player.getGameProfile().getName() + " won the race to "
+            server.getPlayerList().broadcastSystemMessage(Component.literal(player.getGameProfile().name() + " won the race to "
                     + current.place.label() + " in " + minutes + " minutes!").withStyle(ChatFormatting.GOLD), false);
             ItemStack reward = reward();
             if (!reward.isEmpty()) {
@@ -125,7 +125,7 @@ final class EarthRace {
         }
         int count = 1;
         try { if (parts.length > 1) count = Math.max(1, Integer.parseInt(parts[1])); } catch (NumberFormatException ignored) {}
-        return new ItemStack(BuiltInRegistries.ITEM.get(id), count);
+        return new ItemStack(BuiltInRegistries.ITEM.getValue(id), count);
     }
 
     private static void daily(MinecraftServer server) {

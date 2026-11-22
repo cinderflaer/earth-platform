@@ -68,7 +68,7 @@ public final class EarthCompass {
 
     /** Pointing compasses goes with the survival map, which operators can switch off. */
     static boolean allowed(CommandSourceStack source) {
-        return source.getPlayer() != null && (EarthConfig.SURVIVAL_MAP.get() || source.hasPermission(2));
+        return source.getPlayer() != null && (EarthConfig.SURVIVAL_MAP.get() || source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER));
     }
 
     // Pointing ------------------------------------------------------------------------------------
@@ -82,14 +82,14 @@ public final class EarthCompass {
     private static int follow(CommandSourceStack source, ServerPlayer other) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         if (other == player) { source.sendFailure(Component.literal("That's you.")); return 0; }
-        if (!EarthConfig.SHOW_PLAYERS_ON_MAP.get() && !source.hasPermission(2)) {
+        if (!EarthConfig.SHOW_PLAYERS_ON_MAP.get() && !source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER)) {
             source.sendFailure(Component.literal("This server keeps players off the map, so compasses can't follow them."));
             return 0;
         }
         GeoPoint at = EarthRules.where(other);
-        if (at == null || other.isSpectator()) { source.sendFailure(Component.literal(other.getGameProfile().getName() + " isn't on the Earth.")); return 0; }
-        int done = aim(source, player, at.latitude(), at.longitude(), other.getGameProfile().getName(), other.getUUID());
-        if (done > 0) other.sendSystemMessage(Component.literal(player.getGameProfile().getName() + "'s compass now follows you.").withStyle(ChatFormatting.GRAY));
+        if (at == null || other.isSpectator()) { source.sendFailure(Component.literal(other.getGameProfile().name() + " isn't on the Earth.")); return 0; }
+        int done = aim(source, player, at.latitude(), at.longitude(), other.getGameProfile().name(), other.getUUID());
+        if (done > 0) other.sendSystemMessage(Component.literal(player.getGameProfile().name() + "'s compass now follows you.").withStyle(ChatFormatting.GRAY));
         return done;
     }
 
@@ -97,7 +97,7 @@ public final class EarthCompass {
         ServerPlayer player = source.getPlayerOrException();
         Optional<EarthSpawns.Spot> home = EarthSpawns.of(source.getServer()).home(player.getUUID());
         if (home.isEmpty()) { source.sendFailure(Component.literal("You have no home yet: set one with /earth sethome.")); return 0; }
-        return aim(source, player, home.get().latitude(), home.get().longitude(), player.getGameProfile().getName() + "'s home", null);
+        return aim(source, player, home.get().latitude(), home.get().longitude(), player.getGameProfile().name() + "'s home", null);
     }
 
     /** Points a compass the player has at a spot, naming it after {@code name} (or the spot's latitude and longitude when empty). */
@@ -148,8 +148,8 @@ public final class EarthCompass {
         GeoPoint to;
         String label;
         if (target != null) {
-            to = new GeoPoint(target.getDouble("lat"), target.getDouble("lon"));
-            label = label(target.getString("name"), to.latitude(), to.longitude());
+            to = new GeoPoint(target.getDoubleOr("lat", 0.0), target.getDoubleOr("lon", 0.0));
+            label = label(target.getStringOr("name", ""), to.latitude(), to.longitude());
         } else if (compass.has(DataComponents.LODESTONE_TRACKER)) {
             source.sendSuccess(() -> Component.literal("Your compass points to a lodestone."), false);
             return 1;
@@ -170,7 +170,7 @@ public final class EarthCompass {
             target.putDouble("lat", latitude);
             target.putDouble("lon", longitude);
             if (!name.isEmpty()) target.putString("name", name);
-            if (follows != null) target.putUUID("follows", follows);
+            if (follows != null) target.store("follows", net.minecraft.core.UUIDUtil.CODEC, follows);
             tag.put(TAG, target);
         });
         String label = label(name, latitude, longitude);
@@ -228,15 +228,15 @@ public final class EarthCompass {
     public static boolean sameFollower(ItemStack a, ItemStack b) {
         if (!a.is(Items.COMPASS) || !b.is(Items.COMPASS) || a.getCount() != b.getCount()) return false;
         CompoundTag first = target(a), second = target(b);
-        return first != null && second != null && first.hasUUID("follows") && second.hasUUID("follows")
-                && first.getUUID("follows").equals(second.getUUID("follows"));
+        return first != null && second != null && first.read("follows", net.minecraft.core.UUIDUtil.CODEC).isPresent() && second.read("follows", net.minecraft.core.UUIDUtil.CODEC).isPresent()
+                && first.read("follows", net.minecraft.core.UUIDUtil.CODEC).orElseThrow().equals(second.read("follows", net.minecraft.core.UUIDUtil.CODEC).orElseThrow());
     }
 
     /** A pointed compass's target, or null for a compass this didn't point. */
     @Nullable public static CompoundTag target(ItemStack stack) {
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null || !data.contains(TAG)) return null;
-        CompoundTag tag = data.copyTag().getCompound(TAG);
+        if (data == null || !data.copyTag().contains(TAG)) return null;
+        CompoundTag tag = data.copyTag().getCompoundOrEmpty(TAG);
         return tag.contains("lat") && tag.contains("lon") ? tag : null;
     }
 
@@ -265,7 +265,7 @@ public final class EarthCompass {
 
     /** Where a player lands without a bed: their own or their team's spawn, else the server spawn, else the world's home. */
     static GeoPoint spawnOf(ServerPlayer player, EarthGenerator earth) {
-        EarthSpawns spawns = EarthSpawns.of(player.server);
+        EarthSpawns spawns = EarthSpawns.of(player.level().getServer());
         return spawns.personal(player).or(spawns::spawn).map(spot -> new GeoPoint(spot.latitude(), spot.longitude()))
                 .orElseGet(() -> new GeoPoint(earth.settings().latitude(), earth.settings().longitude()));
     }
@@ -276,7 +276,7 @@ public final class EarthCompass {
         if (earth == null) return;
         GeoPoint spawn = spawnOf(player, earth);
         int[] at = nearest(earth, player.getX(), spawn.latitude(), spawn.longitude());
-        player.connection.send(new ClientboundSetDefaultSpawnPositionPacket(new BlockPos(at[0], earth.seaLevel(), at[1]), 0.0F));
+        player.connection.send(new ClientboundSetDefaultSpawnPositionPacket(net.minecraft.world.level.storage.LevelData.RespawnData.of(player.level().dimension(), new BlockPos(at[0], earth.seaLevel(), at[1]), 0.0F, 0.0F)));
     }
 
     /** Some spawn moved: everyone on the Earth hears where theirs is now. */
@@ -315,11 +315,11 @@ public final class EarthCompass {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack stack = player.getItemInHand(hand);
             CompoundTag target = stack.is(Items.COMPASS) ? target(stack) : null;
-            if (target == null || !target.hasUUID("follows")) continue;
+            if (target == null || !target.read("follows", net.minecraft.core.UUIDUtil.CODEC).isPresent()) continue;
             if (earth == null && (earth = EarthRules.earth(player)) == null) return;
-            ServerPlayer other = server.getPlayerList().getPlayer(target.getUUID("follows"));
+            ServerPlayer other = server.getPlayerList().getPlayer(target.read("follows", net.minecraft.core.UUIDUtil.CODEC).orElseThrow());
             if (other == null || other.isSpectator() || other.level() != player.level()) continue;
-            if (!EarthConfig.SHOW_PLAYERS_ON_MAP.get() && !player.hasPermissions(2)) continue;
+            if (!EarthConfig.SHOW_PLAYERS_ON_MAP.get() && !player.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER)) continue;
             GeoPoint at = EarthRules.where(other);
             if (at == null) continue;
             // Measured in the copy of the world the needle points into, which may be across the date line from them.
@@ -331,7 +331,7 @@ public final class EarthCompass {
             if (needle != null && Math.hypot(there[0] - needle.getX(), there[1] - needle.getZ()) < Math.max(FOLLOW_STEP, gap / 100)) continue;
             retarget(stack, player, earth, at.latitude(), at.longitude());
             CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
-                CompoundTag moved = tag.getCompound(TAG);
+                CompoundTag moved = tag.getCompoundOrEmpty(TAG);
                 moved.putDouble("lat", at.latitude());
                 moved.putDouble("lon", at.longitude());
                 tag.put(TAG, moved);

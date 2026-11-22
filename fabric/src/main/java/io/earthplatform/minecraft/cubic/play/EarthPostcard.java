@@ -120,8 +120,8 @@ public final class EarthPostcard {
         if (point == null) return 0;
         String code = code(point.latitude(), point.longitude(), bearing(player.getYRot()));
         source.sendSuccess(() -> Component.literal("Your place code: ").append(Component.literal(code).withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, code))
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to copy")))))
+                        .withClickEvent(new net.minecraft.network.chat.ClickEvent.CopyToClipboard(code))
+                        .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Click to copy")))))
                 .append(". Anyone can come here with /earth code " + code), false);
         return 1;
     }

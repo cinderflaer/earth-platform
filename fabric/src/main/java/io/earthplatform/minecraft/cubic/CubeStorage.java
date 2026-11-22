@@ -90,10 +90,10 @@ public final class CubeStorage {
     }
 
     private static Map<Long, CompoundTag> parse(byte[] bytes) throws IOException {
-        CompoundTag all = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap()).getCompound("cubes");
+        CompoundTag all = NbtIo.readCompressed(new ByteArrayInputStream(bytes), NbtAccounter.unlimitedHeap()).getCompoundOrEmpty("cubes");
         Map<Long, CompoundTag> cubes = new HashMap<>();
-        for (String name : all.getAllKeys()) {
-            try { cubes.put(Long.parseLong(name), all.getCompound(name)); }
+        for (String name : all.keySet()) {
+            try { cubes.put(Long.parseLong(name), all.getCompoundOrEmpty(name)); }
             catch (NumberFormatException ignored) {}
         }
         return cubes;

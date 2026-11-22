@@ -160,15 +160,15 @@ public final class EarthAdmin {
         line(source, players.size() + " players online (click one to go there):", ChatFormatting.GREEN);
         for (ServerPlayer player : players) {
             GeoPoint point = EarthRules.where(player);
-            String name = player.getGameProfile().getName();
+            String name = player.getGameProfile().name();
             if (point == null) { line(source, "  " + name + ": not on the Earth", ChatFormatting.GRAY); continue; }
             String country = EarthRules.country(player);
             String text = String.format(Locale.ROOT, "  %s: %.4f, %.4f%s, Y %d", name, point.latitude(), point.longitude(),
                     country.isEmpty() ? "" : " in " + country, player.getBlockY());
             String command = String.format(Locale.ROOT, "/earth send @s to %.6f %.6f", point.latitude(), point.longitude());
             Component entry = Component.literal(text).withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
-                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(command))));
+                    .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(command))
+                    .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(command))));
             source.sendSuccess(() -> entry, false);
         }
         return 1;
@@ -281,7 +281,7 @@ public final class EarthAdmin {
             if (!first) json.append(',');
             first = false;
             json.append(String.format(Locale.ROOT, "{\"name\":%s,\"lat\":%.5f,\"lon\":%.5f,\"country\":%s}",
-                    quote(player.getGameProfile().getName()), point.latitude(), point.longitude(), quote(EarthRules.country(player))));
+                    quote(player.getGameProfile().name()), point.latitude(), point.longitude(), quote(EarthRules.country(player))));
         }
         json.append("],\"warps\":[");
         first = true;

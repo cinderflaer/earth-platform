@@ -26,16 +26,16 @@ public final class BugPlace {
         if (player != null) {
             BlockPos pos = player.blockPosition();
             coordinates = pos.getX() + " " + pos.getY() + " " + pos.getZ();
-            dimension = player.level().dimension().location().toString();
-            biome = player.level().getBiome(pos).unwrapKey().map(key -> key.location().toString()).orElse("unknown");
+            dimension = player.level().dimension().identifier().toString();
+            biome = player.level().getBiome(pos).unwrapKey().map(key -> key.identifier().toString()).orElse("unknown");
             latitudeLongitude = latitudeLongitude(player);
-            String name = player.getGameProfile().getName();
-            String id = player.getGameProfile().getId() == null ? "" : player.getGameProfile().getId().toString();
+            String name = player.getGameProfile().name();
+            String id = player.getGameProfile().id() == null ? "" : player.getGameProfile().id().toString();
             hide = new String[] {name, id, id.replace("-", "")};
         }
         return new GithubBugLink.Facts(
                 BuildInfo.version(),
-                SharedConstants.getCurrentVersion().getName(),
+                SharedConstants.getCurrentVersion().name(),
                 Loader.INSTANCE.name(),
                 Loader.INSTANCE.version(),
                 ReportText.side(Loader.INSTANCE.isClient()),

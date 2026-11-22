@@ -60,7 +60,7 @@ public final class JetStream {
 
     /** Whether another client's copy of this entity is a glider in the cubic world. */
     public static boolean remoteGlider(LivingEntity entity) {
-        return entity.level().isClientSide && entity.isFallFlying() && inCubic(entity);
+        return entity.level().isClientSide() && entity.isFallFlying() && inCubic(entity);
     }
 
     /**

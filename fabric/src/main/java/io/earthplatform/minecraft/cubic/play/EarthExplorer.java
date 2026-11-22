@@ -59,7 +59,7 @@ public final class EarthExplorer {
             away(player);
             return;
         }
-        Journeys journeys = Journeys.of(player.server);
+        Journeys journeys = Journeys.of(player.level().getServer());
         UUID id = player.getUUID();
         Seen last = LAST.put(id, new Seen(player.level().dimension(), player.getX(), player.getZ(), here));
         if (last != null) {
@@ -80,7 +80,7 @@ public final class EarthExplorer {
 
     /** A player left the Earth or stopped playing on it for now: whatever they do next is a fresh start. */
     static void away(ServerPlayer player) {
-        if (LAST.remove(player.getUUID()) != null) Journeys.of(player.server).endTrip(player.getUUID());
+        if (LAST.remove(player.getUUID()) != null) Journeys.of(player.level().getServer()).endTrip(player.getUUID());
     }
 
     /** A second's travel between two points, by any means but a teleport. */
@@ -122,7 +122,7 @@ public final class EarthExplorer {
     /** Gives a player a criterion of one of the Earth advancements, if they haven't got it. */
     static void award(ServerPlayer player, String name, String criterion) {
         Identifier id = IDS.computeIfAbsent(name, path -> Identifier.fromNamespaceAndPath(EarthPlatformMod.MOD_ID, "earth/" + path));
-        AdvancementHolder advancement = player.server.getAdvancements().get(id);
+        AdvancementHolder advancement = player.level().getServer().getAdvancements().get(id);
         if (advancement != null) player.getAdvancements().award(advancement, criterion);
     }
 
@@ -144,10 +144,14 @@ public final class EarthExplorer {
     /** What the explorer keeps with the world: each player's journeys, so trips and countries last from one session to the next. */
     static final class Journeys extends SavedData {
         private static final String NAME = "earthplatform_journeys";
+        /** How this is saved with the world: as one compound, under a name of its own. */
+        private static final net.minecraft.world.level.saveddata.SavedDataType<Journeys> TYPE = new net.minecraft.world.level.saveddata.SavedDataType<>(
+                net.minecraft.resources.Identifier.fromNamespaceAndPath("earthplatform", "journeys"), Journeys::new,
+                net.minecraft.nbt.CompoundTag.CODEC.xmap(tag -> load(tag, null), data -> data.save(new net.minecraft.nbt.CompoundTag(), null)), null);
         private final Map<UUID, Journey> players = new HashMap<>();
 
         static Journeys of(MinecraftServer server) {
-            return server.overworld().getDataStorage().computeIfAbsent(new SavedData.Factory<>(Journeys::new, Journeys::load, null), NAME);
+            return server.overworld().getDataStorage().computeIfAbsent(TYPE);
         }
 
         private Journey journey(UUID player) { return players.computeIfAbsent(player, id -> new Journey()); }
@@ -183,19 +187,19 @@ public final class EarthExplorer {
 
         private static Journeys load(CompoundTag tag, HolderLookup.Provider registries) {
             Journeys journeys = new Journeys();
-            for (String key : tag.getAllKeys()) {
+            for (String key : tag.keySet()) {
                 UUID id;
                 try { id = UUID.fromString(key); } catch (IllegalArgumentException ignored) { continue; }
-                CompoundTag saved = tag.getCompound(key);
+                CompoundTag saved = tag.getCompoundOrEmpty(key);
                 Journey journey = journeys.journey(id);
-                for (Tag country : saved.getList("countries", Tag.TAG_STRING)) journey.countries.add(country.getAsString());
-                journey.east = saved.getDouble("east");
-                journey.farthest = saved.getDouble("farthest");
+                for (Tag country : saved.getListOrEmpty("countries")) journey.countries.add(country.asString().orElse(""));
+                journey.east = saved.getDoubleOr("east", 0.0);
+                journey.farthest = saved.getDoubleOr("farthest", 0.0);
             }
             return journeys;
         }
 
-        @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
             players.forEach((id, journey) -> {
                 CompoundTag saved = new CompoundTag();
                 ListTag countries = new ListTag();

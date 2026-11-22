@@ -41,7 +41,7 @@ final class BugClientFacts {
         Minecraft minecraft = Minecraft.getInstance();
         if (player == null || minecraft.level == null) return "not in a world";
         return minecraft.level.getBiome(player.blockPosition()).unwrapKey()
-                .map(key -> key.location().toString()).orElse("unknown");
+                .map(key -> key.identifier().toString()).orElse("unknown");
     }
 
     /** A short line. Bug Courier also attaches the redacted end of the log and cuts it to fit the link. */
@@ -50,8 +50,8 @@ final class BugClientFacts {
         LocalPlayer player = minecraft.player;
         String[] hide = {};
         if (player != null) {
-            String name = player.getGameProfile().getName();
-            String id = player.getGameProfile().getId() == null ? "" : player.getGameProfile().getId().toString();
+            String name = player.getGameProfile().name();
+            String id = player.getGameProfile().id() == null ? "" : player.getGameProfile().id().toString();
             hide = new String[] {name, id, id.replace("-", "")};
         }
         return ReportText.oneLine(LogExcerpt.tail(minecraft.gameDirectory.toPath(), 8, 500, hide), 400);

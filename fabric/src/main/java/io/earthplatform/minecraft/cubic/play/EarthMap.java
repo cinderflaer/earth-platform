@@ -75,10 +75,10 @@ public final class EarthMap {
     static void sendOthers(ServerPlayer player) {
         List<Other> others = new java.util.ArrayList<>();
         if (EarthConfig.SHOW_PLAYERS_ON_MAP.get()) {
-            for (ServerPlayer other : player.server.getPlayerList().getPlayers()) {
+            for (ServerPlayer other : player.level().getServer().getPlayerList().getPlayers()) {
                 if (other == player || other.isSpectator()) continue;
                 GeoPoint point = EarthRules.where(other);
-                if (point != null) others.add(new Other(other.getGameProfile().getName(), point.latitude(), point.longitude()));
+                if (point != null) others.add(new Other(other.getGameProfile().name(), point.latitude(), point.longitude()));
             }
         }
         Platform.INSTANCE.sendToPlayer(player, new Players(others));
@@ -89,7 +89,7 @@ public final class EarthMap {
     /** The travel map is for players who may travel and are in creative mode, or operators. */
     static boolean mayOpen(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
-        return player != null && (player.isCreative() || source.hasPermission(2)) && EarthWorlds.mayTravel(source);
+        return player != null && (player.isCreative() || source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER)) && EarthWorlds.mayTravel(source);
     }
 
     /** Who has a map at all: the travel map's players, and everyone else while the server allows the survival map. */

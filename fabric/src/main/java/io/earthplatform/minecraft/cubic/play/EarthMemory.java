@@ -37,15 +37,15 @@ public final class EarthMemory {
     }
 
     public static void loggedIn(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
-        if (server == null || server.isDedicatedServer() || !server.isSingleplayerOwner(player.getGameProfile())) return;
+        MinecraftServer server = player.level().getServer();
+        if (server == null || server.isDedicatedServer() || !server.isSingleplayerOwner(new net.minecraft.server.players.NameAndId(player.getGameProfile()))) return;
         if (!EarthWorlds.isEarth(server) || !low() || !warned.compareAndSet(false, true)) return;
         log();
         player.sendSystemMessage(Component.literal("Earth Platform has only " + gb() + " GB of memory, so it may stutter or crash. Give the game 4 GB, or 6 GB with shaders. ")
                 .withStyle(ChatFormatting.YELLOW)
                 .append(Component.literal("[How]").withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, HELP))
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(HELP))))));
+                        .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(HELP)))
+                        .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(HELP))))));
     }
 
     /** Each server tick: the first time memory runs short in this game, says so. */
@@ -55,13 +55,13 @@ public final class EarthMemory {
         EarthPlatformMod.LOGGER.warn("Java ran short of its {} of memory; give the game more memory ({})", most, HELP);
         if (server.isDedicatedServer()) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!server.isSingleplayerOwner(player.getGameProfile())) continue;
+            if (!server.isSingleplayerOwner(new net.minecraft.server.players.NameAndId(player.getGameProfile()))) continue;
             player.sendSystemMessage(Component.literal("Minecraft ran short of its " + most + " of memory, so Earth is keeping less in memory and drawing far terrain more slowly. "
                             + "Give the game more memory, 6 GB or more with many mods, or it may crash. ")
                     .withStyle(ChatFormatting.YELLOW)
                     .append(Component.literal("[How]").withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, HELP))
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(HELP))))));
+                            .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(HELP)))
+                            .withHoverEvent(new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(HELP))))));
         }
     }
 

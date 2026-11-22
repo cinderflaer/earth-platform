@@ -37,8 +37,8 @@ public final class EarthBasics {
     public static void sleptThrough(net.minecraft.world.level.LevelAccessor sleptIn, long newTime) {
         if (!(sleptIn instanceof ServerLevel level) || !Cubic.isCubic(level.dimension())) return;
         ServerLevel overworld = level.getServer().overworld();
-        if (level.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)) overworld.setDayTime(newTime);
-        if (level.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE) && overworld.isRaining()) overworld.resetWeatherCycle();
+        if (level.getGameRules().get(GameRules.ADVANCE_TIME)) overworld.dimensionType().defaultClock().ifPresent(clock -> overworld.clockManager().setTotalTicks(clock, newTime));
+        if (level.getGameRules().get(GameRules.ADVANCE_WEATHER) && overworld.isRaining()) overworld.resetWeatherCycle();
     }
 
     /** How far round the first arrival to look for trees, in blocks. */
@@ -53,7 +53,7 @@ public final class EarthBasics {
     static void bonusChest(ServerLevel level, Path cubicFolder, Vec3 arrival, ServerPlayer player) {
         Path mark = cubicFolder.resolve(BONUS_CHEST_MARK);
         if (Files.exists(mark)) return;
-        boolean asked = level.getServer().getWorldData().worldGenOptions().generateBonusChest();
+        boolean asked = level.getServer().getWorldGenSettings().options().generateBonusChest();
         boolean treeless = !asked && treeless(level, arrival);
         if (!asked && !treeless) { mark(mark, "none"); return; }
         BlockPos feet = BlockPos.containing(arrival);

@@ -132,7 +132,7 @@ public abstract class CubeWorld {
     }
 
     public boolean blocksSky(BlockState state, BlockPos pos) {
-        return !state.isAir() && !state.propagatesSkylightDown(level, pos);
+        return !state.isAir() && !state.propagatesSkylightDown();
     }
 
     /** Called when a column's top changed. */
@@ -203,10 +203,10 @@ public abstract class CubeWorld {
         updateTop(pos, state);
         onStateStored(cube, pos, old, state);
         boolean hadEntity = old.hasBlockEntity();
-        if (!level.isClientSide) old.onRemove(level, pos, state, moving);
+        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) old.affectNeighborsAfterRemoval(serverLevel, pos, moving);
         else if (!old.is(block) && hadEntity) removeBlockEntity(pos);
         if (!cube.section.getBlockState(lx, ly, lz).is(block)) return null;
-        if (place && !level.isClientSide && !Platform.INSTANCE.capturingSnapshots(level)) state.onPlace(level, pos, old, moving);
+        if (place && !level.isClientSide() && !Platform.INSTANCE.capturingSnapshots(level)) state.onPlace(level, pos, old, moving);
         if (state.hasBlockEntity()) {
             BlockEntity existing = getBlockEntity(pos, false);
             if (existing != null && !existing.isValidBlockState(state)) { removeBlockEntity(pos); existing = null; }
@@ -232,10 +232,10 @@ public abstract class CubeWorld {
         BlockState now = getBlockState(pos);
         if (now != state) return;
         if (old != now) level.setBlocksDirty(pos, old, now);
-        if ((flags & 2) != 0 && (!level.isClientSide || (flags & 4) == 0)) level.sendBlockUpdated(pos, old, state, flags);
+        if ((flags & 2) != 0 && (!level.isClientSide() || (flags & 4) == 0)) level.sendBlockUpdated(pos, old, state, flags);
         if ((flags & 1) != 0) {
-            level.blockUpdated(pos, old.getBlock());
-            if (!level.isClientSide && state.hasAnalogOutputSignal()) level.updateNeighbourForOutputSignal(pos, state.getBlock());
+            level.updateNeighborsAt(pos, old.getBlock());
+            if (!level.isClientSide() && state.hasAnalogOutputSignal()) level.updateNeighbourForOutputSignal(pos, state.getBlock());
         }
         if ((flags & 16) == 0 && depth > 0) {
             int neighbourFlags = flags & -34;
@@ -243,7 +243,7 @@ public abstract class CubeWorld {
             state.updateNeighbourShapes(level, pos, neighbourFlags, depth - 1);
             state.updateIndirectNeighbourShapes(level, pos, neighbourFlags, depth - 1);
         }
-        level.onBlockStateChange(pos, old, now);
+        level.updatePOIOnBlockStateChange(pos, old, now);
         Platform.INSTANCE.onBlockStateChange(state, level, pos, old);
     }
 
@@ -371,6 +371,6 @@ public abstract class CubeWorld {
         }
         @Override public boolean isRemoved() { return retired || entity.isRemoved(); }
         @Override public BlockPos getPos() { return entity.getBlockPos(); }
-        @Override public String getType() { return String.valueOf(BlockEntityType.getKey(entity.getType())); }
+        @Override public String getType() { return String.valueOf(net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(entity.getType())); }
     }
 }

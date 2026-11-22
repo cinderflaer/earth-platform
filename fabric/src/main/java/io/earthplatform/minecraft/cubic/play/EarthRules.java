@@ -1,5 +1,6 @@
 package io.earthplatform.minecraft.cubic.play;
 
+import io.earthplatform.minecraft.cubic.CubicEvents;
 import io.earthplatform.geography.GeoPoint;
 import io.earthplatform.minecraft.cubic.CubicLevel;
 import io.earthplatform.minecraft.cubic.ServerCubeWorld;
@@ -51,7 +52,7 @@ public final class EarthRules {
      * Every trip asks, whoever sent it; a race also notes who travelled.
      */
     @Nullable public static String refuse(ServerPlayer player, double latitude, double longitude) {
-        Optional<EarthSpawns.Border> border = EarthSpawns.of(player.server).border();
+        Optional<EarthSpawns.Border> border = EarthSpawns.of(player.level().getServer()).border();
         if (border.isPresent() && !border.get().contains(latitude, longitude))
             return "That's outside this server's border (" + border.get().label() + ").";
         EarthRace.travelled(player);
@@ -64,7 +65,7 @@ public final class EarthRules {
      * players go free. Tells the player and returns false when they can't pay or must wait.
      */
     static boolean pay(CommandSourceStack source, ServerPlayer player, double latitude, double longitude) {
-        if (source.getPlayer() != player || source.hasPermission(2) || player.isCreative() || player.isSpectator()) return true;
+        if (source.getPlayer() != player || source.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER) || player.isCreative() || player.isSpectator()) return true;
         long now = net.minecraft.util.Util.getMillis();
         long next = NEXT_TRIP.getOrDefault(player.getUUID(), 0L);
         if (now < next) {
@@ -135,12 +136,12 @@ public final class EarthRules {
             INSIDE.put(player.getUUID(), player.position());
             return;
         }
-        if (player.hasPermissions(2) && player.isCreative()) return;
+        if (player.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER) && player.isCreative()) return;
         Vec3 back = INSIDE.get(player.getUUID());
-        player.displayClientMessage(Component.literal("You've reached the edge of this server's map.").withStyle(ChatFormatting.RED), true);
+        player.sendOverlayMessage(Component.literal("You've reached the edge of this server's map.").withStyle(ChatFormatting.RED));
         // Someone already outside when the border was drawn (or who arrived there by an operator's command) stays put.
         if (back == null) return;
-        player.teleportTo(player.serverLevel(), back.x, back.y, back.z, player.getYRot() + 180, player.getXRot());
+        CubicEvents.teleport(player, player.level(), back.x, back.y, back.z, player.getYRot() + 180, player.getXRot());
         player.setDeltaMovement(Vec3.ZERO);
         player.resetFallDistance();
     }

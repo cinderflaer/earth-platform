@@ -577,7 +577,7 @@ public final class FarServer {
         int cubes = 1 << level, minX = columnX * cubes, minZ = columnZ * cubes;
         for (long cube : storage.savedIn(minX, minX + cubes - 1, minZ, minZ + cubes - 1)) {
             CompoundTag tag = storage.read(cube);
-            if (tag != null && !tag.getBoolean(CubeCodec.UNTOUCHED)) return true;
+            if (tag != null && !tag.getBooleanOr(CubeCodec.UNTOUCHED, false)) return true;
         }
         return false;
     }
@@ -623,7 +623,7 @@ public final class FarServer {
         for (long key : storage.savedIn(minX, minX + cubes - 1, minZ, minZ + cubes - 1)) {
             CompoundTag tag = storage.read(key);
             // Cubes saved just as generated already match the far terrain made from the generator.
-            if (tag == null || tag.getBoolean(CubeCodec.UNTOUCHED)) continue;
+            if (tag == null || tag.getBooleanOr(CubeCodec.UNTOUCHED, false)) continue;
             LevelChunkSection cube = codec.read(tag).section();
             int voxelY = (CubeKey.y(key) * 16) >> level, sectionIndex = (voxelY >> 4) - column.bottom;
             // Edits below the column's ground are out of sight from afar.
@@ -686,7 +686,7 @@ public final class FarServer {
         try {
             storage.forEachSaved((cubeKey, tag) -> {
                 if (closed) throw new java.util.concurrent.CancellationException();
-                if (tag.getBoolean(CubeCodec.UNTOUCHED) || summarized.contains(cubeKey)) return;
+                if (tag.getBooleanOr(CubeCodec.UNTOUCHED, false) || summarized.contains(cubeKey)) return;
                 counts[0]++;
                 FarBuilds.Summary summary = FarBuilds.summarize(codec.read(tag).section().getStates(),
                         CubeKey.x(cubeKey), CubeKey.y(cubeKey), CubeKey.z(cubeKey), generator::surfaceY);
@@ -715,8 +715,8 @@ public final class FarServer {
         Holder<Biome> biome = null;
         for (LevelChunkSection other : column.sections) if (other != null) { biome = other.getBiomes().get(2, 2, 2); break; }
         if (biome == null) biome = biomeIds.byIdOrThrow(0);
-        section = new LevelChunkSection(new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, AIR, PalettedContainer.Strategy.SECTION_STATES),
-                new PalettedContainer<>(biomeIds, biome, PalettedContainer.Strategy.SECTION_BIOMES));
+        section = new LevelChunkSection(new PalettedContainer<>(AIR, net.minecraft.world.level.chunk.Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY)),
+                new PalettedContainer<>(biome, net.minecraft.world.level.chunk.Strategy.createForBiomes(biomeIds)));
         column.sections.set(index, section);
         return section;
     }

@@ -33,14 +33,14 @@ public final class CubeCodec {
     /** Entities a fresh cube starts with (chest minecarts), not yet placed in the level. */
     public static final String ENTITIES = "entities";
     private static final Codec<PalettedContainer<BlockState>> STATES = PalettedContainer.codecRW(
-            Block.BLOCK_STATE_REGISTRY, BlockState.CODEC, PalettedContainer.Strategy.SECTION_STATES, Blocks.AIR.defaultBlockState());
+            BlockState.CODEC, net.minecraft.world.level.chunk.Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY), Blocks.AIR.defaultBlockState());
     private final Codec<PalettedContainerRO<Holder<Biome>>> biomes;
     private final Registry<Biome> biomeRegistry;
 
     public CubeCodec(Registry<Biome> biomeRegistry) {
         this.biomeRegistry = biomeRegistry;
-        this.biomes = PalettedContainer.codecRO(biomeRegistry.asHolderIdMap(), biomeRegistry.holderByNameCodec(),
-                PalettedContainer.Strategy.SECTION_BIOMES, biomeRegistry.getHolderOrThrow(Biomes.PLAINS));
+        this.biomes = PalettedContainer.codecRO(biomeRegistry.holderByNameCodec(),
+                net.minecraft.world.level.chunk.Strategy.createForBiomes(biomeRegistry.asHolderIdMap()), biomeRegistry.getOrThrow(Biomes.PLAINS));
     }
 
     public record Decoded(LevelChunkSection section, List<CompoundTag> blockEntities) {}
@@ -81,7 +81,7 @@ public final class CubeCodec {
     /** Any thread: the entity tags saved under a key, or none. */
     public static List<CompoundTag> tags(CompoundTag tag, String key) {
         List<CompoundTag> list = new ArrayList<>();
-        for (Tag entry : tag.getList(key, Tag.TAG_COMPOUND)) list.add((CompoundTag) entry);
+        for (Tag entry : tag.getListOrEmpty(key)) list.add((CompoundTag) entry);
         return list;
     }
 
@@ -101,7 +101,7 @@ public final class CubeCodec {
     }
 
     private static void missing(CompoundTag tag, String error) {
-        EarthPlatformMod.LOGGER.warn("Saved cube [{},{},{}]: {}", tag.getInt("x"), tag.getInt("y"), tag.getInt("z"), error);
+        EarthPlatformMod.LOGGER.warn("Saved cube [{},{},{}]: {}", tag.getIntOr("x", 0), tag.getIntOr("y", 0), tag.getIntOr("z", 0), error);
     }
 
     public static byte[] sectionBytes(LevelChunkSection section) {
@@ -113,7 +113,11 @@ public final class CubeCodec {
     }
 
     public static LevelChunkSection readSection(byte[] bytes, Registry<Biome> biomes) {
-        LevelChunkSection section = new LevelChunkSection(biomes);
+        LevelChunkSection section = new LevelChunkSection(new net.minecraft.world.level.chunk.PalettedContainerFactory(
+                net.minecraft.world.level.chunk.Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY), Blocks.AIR.defaultBlockState(),
+                PalettedContainer.codecRW(BlockState.CODEC, net.minecraft.world.level.chunk.Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY), Blocks.AIR.defaultBlockState()),
+                net.minecraft.world.level.chunk.Strategy.createForBiomes(biomes.asHolderIdMap()), biomes.getOrThrow(Biomes.PLAINS),
+                PalettedContainer.codecRO(biomes.holderByNameCodec(), net.minecraft.world.level.chunk.Strategy.createForBiomes(biomes.asHolderIdMap()), biomes.getOrThrow(Biomes.PLAINS))));
         section.read(new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes)));
         section.recalcBlockCounts();
         return section;

@@ -53,16 +53,16 @@ public final class CurrentRide {
         // Looking ahead the way the boat goes, or the way it faces until it gets going.
         double dx = speed > 1 ? velocity.x / speed : -Mth.sin(yaw * Mth.DEG_TO_RAD), dz = speed > 1 ? velocity.z / speed : Mth.cos(yaw * Mth.DEG_TO_RAD);
         int ahead = ahead(far, boat.getX(), boat.getZ(), dx, dz);
-        boolean catching = player.input.up && ahead == 1 && Minecraft.getInstance().options.keySprint.isDown();
+        boolean catching = player.input.keyPresses.forward() && ahead == 1 && Minecraft.getInstance().options.keySprint.isDown();
         boolean riding = ride.earthplatform$riding();
         if (!riding) {
-            state = player.input.up && ahead == 1 ? State.OPEN : State.NONE;
+            state = player.input.keyPresses.forward() && ahead == 1 ? State.OPEN : State.NONE;
             if (!catching) return null;
             riding = true;
             state = State.RIDING;
         }
         // Once let go, a boat slows all the way to a stop unless the current is caught again.
-        boolean letGo = state == State.SLOWING && !catching || player.input.down || boat.horizontalCollision || ahead == 0;
+        boolean letGo = state == State.SLOWING && !catching || player.input.keyPresses.backward() || boat.horizontalCollision || ahead == 0;
         Vec3 next;
         if (letGo || ahead < 0) {
             next = OceanCurrent.brake(velocity);
