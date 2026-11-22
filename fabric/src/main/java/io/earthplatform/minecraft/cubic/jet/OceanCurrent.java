@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.vehicle.boat.Boat;
+import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -83,13 +83,13 @@ public final class OceanCurrent {
     }
 
     /** The height a boat floats at on the sea, where vanilla floating settles it: 0.65 of its height under the water's surface, 8/9 up the sea's top block. */
-    public static double floatHeight(Boat boat) { return EarthGenerator.SEA + 8.0 / 9.0 - 0.65 * boat.getBbHeight(); }
+    public static double floatHeight(AbstractBoat boat) { return EarthGenerator.SEA + 8.0 / 9.0 - 0.65 * boat.getBbHeight(); }
 
     /**
      * A boat in the cubic world floating on the sea: where the current runs, and where the far terrain's sea can hold a boat
      * up. One on the ground a block higher or lower is not.
      */
-    public static boolean atSea(Boat boat) {
+    public static boolean atSea(AbstractBoat boat) {
         return Math.abs(boat.getY() - floatHeight(boat)) < 0.25 && CubicLevel.of(boat.level()) != null;
     }
 
@@ -98,7 +98,7 @@ public final class OceanCurrent {
      * On the server, so does a rider the current has let go of until the ground and the chunk where it did are ready.
      */
     public static boolean carried(Entity entity) {
-        Boat boat = entity.getRootVehicle() instanceof Boat ridden && atSea(ridden) ? ridden : null;
+        AbstractBoat boat = entity.getRootVehicle() instanceof AbstractBoat ridden && atSea(ridden) ? ridden : null;
         if (entity.level().isClientSide()) {
             return boat != null && ((Ride) boat).earthplatform$riding() && boat.getDeltaMovement().horizontalDistanceSqr() > OUTRUNS * OUTRUNS;
         }
@@ -108,7 +108,7 @@ public final class OceanCurrent {
     }
 
     /** Server: whether a boat's rider last moved it faster than terrain could be sent, lately. */
-    private static boolean fast(Boat boat) {
+    private static boolean fast(AbstractBoat boat) {
         Ride ride = (Ride) boat;
         return ride.earthplatform$step() > OUTRUNS && boat.level().getGameTime() - ride.earthplatform$steppedAt() <= STEP_TICKS;
     }
@@ -142,7 +142,7 @@ public final class OceanCurrent {
      * back as the boat sped up, the boat never counted as fast and every move after was turned back too.
      */
     public static boolean currentMove(Entity vehicle, double x, double y, double z) {
-        return vehicle instanceof Boat boat && atSea(boat) && Math.abs(y - floatHeight(boat)) < 0.25
+        return vehicle instanceof AbstractBoat boat && atSea(boat) && Math.abs(y - floatHeight(boat)) < 0.25
                 && Math.hypot(x - boat.getX(), z - boat.getZ()) <= MAX_STEP;
     }
 
@@ -151,7 +151,7 @@ public final class OceanCurrent {
      * so how far one move went is how fast the boat goes, however unevenly the moves arrive.
      */
     public static void moved(Entity vehicle, double fromX, double fromZ) {
-        if (!(vehicle instanceof Boat boat)) return;
+        if (!(vehicle instanceof AbstractBoat boat)) return;
         double step = Math.hypot(boat.getX() - fromX, boat.getZ() - fromZ);
         if (step > MAX_STEP) step = 0;
         ((Ride) boat).earthplatform$stepped(step, boat.level().getGameTime());
@@ -169,7 +169,7 @@ public final class OceanCurrent {
      * one with a rider: the level reads this only as a boat comes in and as its chunk loads or unloads, and a boat a player
      * logs back in aboard comes in before its rider, so one that changed when the rider got in was never sent at all.
      */
-    public static boolean keepsTicking(Boat boat) {
+    public static boolean keepsTicking(AbstractBoat boat) {
         return Cubic.isCubic(boat.level().dimension());
     }
 
@@ -192,11 +192,11 @@ public final class OceanCurrent {
     public static Vec3 brake(Vec3 velocity) { return new Vec3(velocity.x * BRAKE, 0, velocity.z * BRAKE); }
 
     /**
-     * Boat.floatBoat on the cubic Earth's sea: the velocity a boat goes on with this tick when the current has it, or when
+     * AbstractBoat.floatBoat on the cubic Earth's sea: the velocity a boat goes on with this tick when the current has it, or when
      * its cube hasn't come yet and the far terrain's sea holds it up; null where vanilla floating goes on. Either way it
      * keeps to the height it floats at.
      */
-    @Nullable public static Vec3 floatBoat(Boat boat) {
+    @Nullable public static Vec3 floatBoat(AbstractBoat boat) {
         Ride ride = (Ride) boat;
         if (!atSea(boat)) {
             ride.earthplatform$setRiding(false);
@@ -214,7 +214,7 @@ public final class OceanCurrent {
     }
 
     /** Whether the cube a boat floats in has come. */
-    private static boolean cubeHere(Boat boat) {
+    private static boolean cubeHere(AbstractBoat boat) {
         CubeWorld cubes = CubicLevel.at(boat.level(), boat.getBlockX(), boat.getBlockZ());
         return cubes == null || cubes.cubeAtBlock(boat.getBlockX(), boat.getBlockY(), boat.getBlockZ()) != null;
     }

@@ -6,12 +6,12 @@ import io.earthplatform.minecraft.cubic.CubeWorld;
 import io.earthplatform.minecraft.cubic.CubicLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.PointedDripstoneBlock;
+import net.minecraft.world.level.block.SpeleothemBlock;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /** Pointed dripstone finds its tip, base and the cauldron under it at any cubic height, so it grows and drips. */
-@Mixin(PointedDripstoneBlock.class)
+@Mixin(SpeleothemBlock.class)
 abstract class CubicDripstoneMixin {
     @WrapOperation(method = "findBlockVertical", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/LevelAccessor;isOutsideBuildHeight(I)Z"))
     private static boolean earthplatform$cubicRange(LevelAccessor level, int y, Operation<Boolean> original) {

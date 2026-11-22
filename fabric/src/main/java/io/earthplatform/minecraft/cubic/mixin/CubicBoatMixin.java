@@ -2,7 +2,7 @@ package io.earthplatform.minecraft.cubic.mixin;
 
 import io.earthplatform.minecraft.cubic.jet.OceanCurrent;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.vehicle.boat.Boat;
+import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 import net.minecraft.world.entity.vehicle.VehicleEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * where its cube hasn't come yet (see {@link OceanCurrent}). A boat keeps ticking where no chunk is loaded,
  * as a player does, since one in the current leaves the loaded chunks behind (see {@link OceanCurrent#keepsTicking}).
  */
-@Mixin(Boat.class)
+@Mixin(AbstractBoat.class)
 abstract class CubicBoatMixin extends VehicleEntity implements OceanCurrent.Ride {
     @Shadow private float deltaRotation;
     @Unique private boolean earthplatform$riding;
@@ -29,7 +29,7 @@ abstract class CubicBoatMixin extends VehicleEntity implements OceanCurrent.Ride
 
     @Inject(method = "floatBoat", at = @At("HEAD"), cancellable = true)
     private void earthplatform$atSea(CallbackInfo info) {
-        Vec3 next = OceanCurrent.floatBoat((Boat) (Object) this);
+        Vec3 next = OceanCurrent.floatBoat((AbstractBoat) (Object) this);
         if (next == null) return;
         setDeltaMovement(next);
         deltaRotation *= (float) OceanCurrent.WATER;
@@ -38,7 +38,7 @@ abstract class CubicBoatMixin extends VehicleEntity implements OceanCurrent.Ride
         info.cancel();
     }
 
-    @Override public boolean isAlwaysTicking() { return OceanCurrent.keepsTicking((Boat) (Object) this) || super.isAlwaysTicking(); }
+    @Override public boolean isAlwaysTicking() { return OceanCurrent.keepsTicking((AbstractBoat) (Object) this) || super.isAlwaysTicking(); }
 
     @Override public boolean earthplatform$riding() { return earthplatform$riding; }
     @Override public void earthplatform$setRiding(boolean riding) { earthplatform$riding = riding; }

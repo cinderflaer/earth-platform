@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.vehicle.boat.Boat;
+import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -36,7 +36,7 @@ public final class CurrentRide {
     static State state() { return state; }
 
     /** The local player's boat's velocity this tick when the current has it, or null; see {@link OceanCurrent#floatBoat}. */
-    @Nullable static Vec3 steer(Boat boat) {
+    @Nullable static Vec3 steer(AbstractBoat boat) {
         OceanCurrent.Ride ride = (OceanCurrent.Ride) boat;
         ClientCubeWorld world = ClientCubeWorld.current();
         double scale = world == null ? 0 : world.far().metresPerBlock();

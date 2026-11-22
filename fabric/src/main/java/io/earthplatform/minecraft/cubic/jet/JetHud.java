@@ -5,7 +5,7 @@ import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.vehicle.boat.Boat;
+import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 
 /**
  * Tells a glider about the jet stream above the action bar: a hint when it climbs toward the wind,
@@ -31,7 +31,7 @@ public final class JetHud {
         Component text = null;
         if (player.isFallFlying()) {
             text = message(player.getY(), player.getDeltaMovement().horizontalDistance() * 20, player.getDeltaMovement().y, player.getYRot());
-        } else if (player.getVehicle() instanceof Boat boat && boat.getControllingPassenger() == player && OceanCurrent.atSea(boat)) {
+        } else if (player.getVehicle() instanceof AbstractBoat boat && boat.getControllingPassenger() == player && OceanCurrent.atSea(boat)) {
             text = current(CurrentRide.state(), boat.getDeltaMovement().horizontalDistance() * 20, boat.getYRot());
         }
         if (text == null) return;
