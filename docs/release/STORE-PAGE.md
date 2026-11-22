@@ -10,7 +10,7 @@ Everything to paste into the two project pages. Nothing has been published. JR c
 | URL / slug | `earth-platform` (modrinth.com/mod/earth-platform) | `earth-platform` |
 | Summary | The real Earth in Minecraft at true scale. Every mountain at its real height, real climate and biomes, terrain to the horizon, and ordinary survival anywhere on the planet. (Under 256 characters.) | The real Earth in Minecraft at true scale. (Short summary field.) |
 | Project type | Mod | Minecraft → Mods |
-| Loader | NeoForge | NeoForge |
+| Loader | Fabric | Fabric |
 | Game version | 1.21.1 | 1.21.1 |
 | Environment | Client: required. Server: required. | Client and server |
 | Categories / tags | Primary **Worldgen**; also **Adventure** and **Transportation** | **World Gen** (main), **Biomes**, **Adventure and RPG** |
@@ -28,7 +28,8 @@ Set these on every version you upload.
 
 | Mod | Modrinth relation | CurseForge relation | Note |
 | --- | --- | --- | --- |
-| NeoForge 21.1.256 or newer for 1.21.1 | (loader; not a project dependency) | (loader) | Required |
+| Fabric Loader 0.16.14 or newer for 1.21.1 | (loader; not a project dependency) | (loader) | Required |
+| [Fabric API](https://modrinth.com/mod/fabric-api) 0.116 or newer for 1.21.1 | Required | Required Dependency | Required |
 | [Sodium](https://modrinth.com/mod/sodium) 0.8.12 or later 0.8 | Optional | Optional Dependency | Only for shaders |
 | [Iris](https://modrinth.com/mod/iris) 1.8.14 or later 1.8 | Optional | Optional Dependency | Only for shaders |
 | [Photon](https://modrinth.com/project/lLqFfGNs) v1.3b | Not a mod; mention in the description only | Not listed | Stock, unmodified pack |
@@ -75,7 +76,7 @@ There are no cities: built-up land becomes the wild land around it. Vanilla vill
 
 ## Get started
 
-1. Install NeoForge 21.1.256 or newer for Minecraft 1.21.1 and put this mod in `mods`. Install it on the server too if you play on one.
+1. Install Fabric Loader and Fabric API for Minecraft 1.21.1 and put this mod in `mods`. Install it on the server too if you play on one.
 2. Give the game at least 4 GB of memory, or at least 6 GB with shaders such as Photon.
 3. Singleplayer → Create New World. The world type is already **Earth**; press **Customize** to choose where you start.
 
@@ -105,13 +106,13 @@ Earth Platform is free software under the GNU LGPL 3.0; the Earth data keeps its
 
 | Field | Value |
 | --- | --- |
-| File | `earthplatform-<version>.jar` from the GitHub release (the same file on both sites) |
+| File | `earthplatform-fabric-<version>.jar` from the GitHub release (the same file on both sites) |
 | Version number | The mod version, for example `0.1.0-alpha.38` (see [Versioning](GO-PUBLIC.md#versioning)) |
 | Version name / display name | `Earth Platform 0.1.0-alpha.38` |
 | Channel / release type | **Alpha** |
 | Game versions | 1.21.1 |
-| Loaders | NeoForge |
+| Loaders | Fabric (and Quilt) |
 | Java version (CurseForge) | Java 21 |
 | Environment (CurseForge) | Client and Server |
 | Changelog | That build's notes from `docs/release/notes/combined-NN.md`, which the GitHub release also shows |
-| Dependencies | Sodium and Iris as optional (table above) |
+| Dependencies | Fabric API as required; Sodium and Iris as optional (table above) |

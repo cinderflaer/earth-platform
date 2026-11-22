@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../fabric"
 export JAVA_HOME="${JAVA_HOME:-$(cd ../.toolchain/jdk21 && pwd)}"
 export PATH="$JAVA_HOME/bin:$PATH"
 export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$PWD/.gradle-home}"

@@ -26,8 +26,8 @@ Merge fix pull requests into `main` freely. A merge on its own does not publish 
 
 To ship, open a pull request from a branch in this repository that:
 
-1. Bumps `mod_version` in `minecraft/gradle.properties` to the next `0.1.0-alpha.N`. Fabric takes its version from that same line. If `fabric/gradle.properties` ever has its own `mod_version`, bump that to the same value in this pull request.
+1. Bumps `mod_version` in `fabric/gradle.properties` to the next `0.1.0-alpha.N`.
 2. Adds `docs/release/notes/combined-N.md` for that same N. The release workflow stops if the version and the notes file name a different build.
 3. Has the `build` label. The label has to be on the pull request when it merges.
 
-Merging that pull request builds the NeoForge and Fabric jars, publishes the GitHub release from the merge commit, and uploads to CurseForge and Modrinth when the repository secrets are set. Pushing a `combined-*` tag, or running the Release workflow by hand with a tag name, still publishes too.
+Merging that pull request builds the Fabric jar, publishes the GitHub release from the merge commit, and uploads to CurseForge and Modrinth when the repository secrets are set. Pushing a `combined-*` tag, or running the Release workflow by hand with a tag name, still publishes too.

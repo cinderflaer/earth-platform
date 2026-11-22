@@ -2,7 +2,7 @@
 
 ## Make a world
 
-1. Install the mod (NeoForge 21.1 for Minecraft 1.21.1).
+1. Install the mod (Fabric Loader and Fabric API for Minecraft 1.21.1).
 2. Singleplayer → Create New World. The **World Type** is already **Earth** (World tab).
 3. Press **Customize** to choose where you start: a famous place from the list, **Surprise me**, any latitude and longitude, or **Choose on a globe...**: spin and zoom a globe of the real Earth (drag, scroll, arrow keys) and click where you want to begin. Close up it loads the real terrain and land cover; offline it shows the built-in NASA Blue Marble map. Without a choice you start in Yosemite Valley.
 4. Create the world. The first visit to a place downloads its terrain, land cover and climate; a "Preparing your Earth" screen shows while that happens. It is kept on disk, so later visits are instant and work offline.
@@ -73,7 +73,7 @@ In singleplayer you can always travel. On servers only operators can, unless `an
 
 ## Settings
 
-Mods → Earth Platform → Config, or the files in `config/`. On NeoForge the Mods list has the Config button. On Fabric the same screen is in Mod Menu when it is installed; without Mod Menu, use the **All Earth settings** button on Sodium's Earth page (Video Settings), or edit the files.
+Mod Menu → Earth Platform → Config, or the files in `config/`. Without Mod Menu, use the **All Earth settings** button on Sodium's Earth page (Video Settings), or edit the files.
 
 | Setting | File | Default | What it does |
 | --- | --- | --- | --- |

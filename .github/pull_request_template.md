@@ -4,7 +4,7 @@
 
 ## How it was checked
 
-- [ ] `gradle jar test` passes in `minecraft/` (see docs/BUILDING.md)
+- [ ] `gradle build` passes in `fabric/` (see docs/BUILDING.md)
 - [ ] Tried in a fresh Earth world (for terrain or rendering changes)
 
 ## License

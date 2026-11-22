@@ -1,5 +1,5 @@
 # Uploads builds that are already GitHub releases to CurseForge, run by hand from the Actions tab.
-# It downloads each release's own jars (nothing is rebuilt, so the files are byte-for-byte the
+# It downloads each release's Fabric jar (nothing is rebuilt, so the files are byte-for-byte the
 # GitHub ones) and uploads them with .github/scripts/curseforge-upload.sh, oldest first so the
 # newest build ends up on top. Uses the same CURSEFORGE_TOKEN secret and CURSEFORGE_PROJECT
 # variable as the Release workflow.
@@ -37,10 +37,10 @@ jobs:
             case "$tag" in combined-[0-9]*) ;; *) echo "::error::$tag is not a combined-NN tag."; exit 1 ;; esac
             dir="backfill/$tag"; mkdir -p "$dir"
             gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$dir" \
-              --pattern "earthplatform-$tag.jar" --pattern "earthplatform-fabric-$tag.jar" \
-              || { echo "::error::Could not download the jars of $tag."; exit 1; }
+              --pattern "earthplatform-fabric-$tag.jar" \
+              || { echo "::error::Could not download the Fabric jar of $tag."; exit 1; }
             ( cd "$dir" && sha256sum *.jar )
             # VERSION stays 0.1.0-alpha.N so the display name matches the build. The upload
-            # script publishes that as CurseForge release type beta, for both jars.
+            # script publishes that as CurseForge release type beta.
             TAG="$tag" VERSION="0.1.0-alpha.${tag#combined-}" bash .github/scripts/curseforge-upload.sh "$dir"
           done

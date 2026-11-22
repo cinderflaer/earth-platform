@@ -15,10 +15,10 @@ body:
     validations:
       required: true
   - type: input
-    id: neoforge
+    id: loader
     attributes:
-      label: NeoForge version
-      placeholder: 21.1.259
+      label: Fabric Loader and Fabric API versions
+      placeholder: Fabric Loader 0.16.14, Fabric API 0.116.18
     validations:
       required: true
   - type: dropdown

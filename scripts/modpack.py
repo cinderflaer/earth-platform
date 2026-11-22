@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Makes the one-click install packs: a Modrinth pack (.mrpack) for NeoForge and one for Fabric.
+"""Makes the one-click install pack: a Modrinth pack (.mrpack) for Fabric.
 
-usage: modpack.py <version> <neoforge jar> <fabric jar> <out dir> [name suffix]
+usage: modpack.py <version> <fabric jar> <out dir> [name suffix]
 
 A launcher that opens .mrpack files (Modrinth App, Prism Launcher, ATLauncher and others) sets up
-Minecraft 1.21.1, the mod loader, Earth Platform, Sodium, Iris and the Photon shader pack from one
+Minecraft 1.21.1, Fabric Loader, Fabric API, Earth Platform, Sodium, Iris and the Photon shader pack from one
 file, with Photon switched on. The Earth Platform jar rides inside the pack; the other mods and the
 shader pack are not copied: the pack names each one's own download on Modrinth, with its size and
 checksums, and the launcher fetches it from there. They are the versions the release is built and
@@ -14,7 +14,6 @@ that stays a launcher setting (about 6 GB with shaders).
 import json, pathlib, sys, zipfile
 
 MINECRAFT = "1.21.1"
-NEOFORGE = "21.1.259"
 FABRIC_LOADER = "0.16.14"
 
 def pin(path, url, size, sha1, sha512):
@@ -26,16 +25,6 @@ PHOTON = pin("shaderpacks/photon_v1.3b.zip", "https://cdn.modrinth.com/data/lLqF
              "40bcbac9c656f2965f543e4b35cd0698723b2db8b67662f1b53c14223cfbef7d60d7fbf0176f73fcadd0d1e19ba60d951ed77e9eece8c8df7dca4d2be6315309")
 
 PACKS = {
-    "neoforge": {"loader": {"neoforge": NEOFORGE}, "files": [
-        pin("mods/sodium-neoforge-0.8.13+mc1.21.1.jar",
-            "https://cdn.modrinth.com/data/AANobbMI/versions/uMOpc5uV/sodium-neoforge-0.8.13%2Bmc1.21.1.jar", 1292934,
-            "1757289be21ed18db5b0d90703fa3db1b2de5693",
-            "4f537696af95411e9daf15795fb5fcbc49913d488a96fa912fa8f1d7db408710995e8a1461190f3cd0f8217bf9e35e9539176592428ed587ca2d7aa84450a390"),
-        pin("mods/iris-neoforge-1.8.14-beta.1+mc1.21.1.jar",
-            "https://cdn.modrinth.com/data/YL57xq9U/versions/KduFYu4t/iris-neoforge-1.8.14-beta.1%2Bmc1.21.1.jar", 2540723,
-            "1bd129cf7bce65d6b1c0543045f0620c98a0f885",
-            "33fddb430e16222902eac75b8b3d57c381b0f3cc729f3b56c4628df12ca108f23a0b11e2feb167923d6d14d1fc7e8ee1a977ec421b19d1951bdca74c4092b9c5"),
-        PHOTON]},
     "fabric": {"loader": {"fabric-loader": FABRIC_LOADER}, "files": [
         pin("mods/fabric-api-0.116.18+1.21.1.jar",
             "https://cdn.modrinth.com/data/P7dR8mSH/versions/5SwzqWUu/fabric-api-0.116.18%2B1.21.1.jar", 2453884,
@@ -56,8 +45,8 @@ PACKS = {
 IRIS = "enableShaders=true\nshaderPack=photon_v1.3b.zip\n"
 
 def main():
-    version, jars, out = sys.argv[1], {"neoforge": sys.argv[2], "fabric": sys.argv[3]}, pathlib.Path(sys.argv[4])
-    suffix = sys.argv[5] if len(sys.argv) > 5 else version
+    version, jars, out = sys.argv[1], {"fabric": sys.argv[2]}, pathlib.Path(sys.argv[3])
+    suffix = sys.argv[4] if len(sys.argv) > 4 else version
     out.mkdir(parents=True, exist_ok=True)
     for loader, pack in PACKS.items():
         index = {"formatVersion": 1, "game": "minecraft", "versionId": version,

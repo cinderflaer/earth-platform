@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Uploads one build's jars to CurseForge: the NeoForge jar, and the Fabric jar if the build has one.
+# Uploads one build's Fabric jar to CurseForge.
 # Used by release.yml for each new release and by curseforge-backfill.yml for older ones.
-# Usage: curseforge-upload.sh <folder with earthplatform-$TAG.jar and earthplatform-fabric-$TAG.jar>
+# Usage: curseforge-upload.sh <folder with earthplatform-fabric-$TAG.jar>
 # Environment: TAG (combined-NN), VERSION (0.1.0-alpha.NN), CURSEFORGE_TOKEN, CURSEFORGE_PROJECT,
 # GITHUB_REPOSITORY. Changelog: docs/release/notes/$TAG.md from the checkout.
 # Skips with a notice when the token or project id is missing. CURSEFORGE_DRY_RUN=1 checks the token
@@ -24,7 +24,6 @@ id_of() { # name type-slug-pattern: CurseForge's id for a game version, loader, 
 }
 need() { id=$(id_of "$1" "$2"); [ -n "$id" ] || { echo "::error::CurseForge has no '$1' tag." >&2; return 1; }; echo "$id"; }
 minecraft=$(need 1.21.1 '^minecraft-1-21$') || exit 1
-neoforge=$(need NeoForge '^modloader$') || exit 1
 fabric=$(need Fabric '^modloader$') || exit 1
 quilt=$(id_of Quilt '^modloader$')
 # Java and side tags only help players filter; leave them off if CurseForge renames them.
@@ -34,7 +33,7 @@ if [ -f "$notes" ]; then changelog=$(cat "$notes"); else changelog="Earth Platfo
 # Store channel is Beta for 0.1.0-alpha.N and 0.1.0-beta.N. The "-alpha" in the version
 # string is the build scheme, not the CurseForge release type. A version with no
 # alpha, beta, or prototype suffix (the first stable 0.1.0) is a release.
-# The Modrinth step in release.yml uses this same rule. Both jars share $type.
+# The Modrinth step in release.yml uses this same rule.
 case "$VERSION" in *-beta.*|*-alpha.*|*prototype*) type=beta ;; *) type=release ;; esac
 upload() { # display-name jar game-version-ids-json relations-json
   jq -n --arg name "$1" --arg changelog "$changelog" --arg type "$type" \
@@ -52,7 +51,6 @@ upload() { # display-name jar game-version-ids-json relations-json
   echo "Uploaded $2 to CurseForge as file $(jq -r .id curseforge-response.json). It goes live after CurseForge's review."
 }
 optional='[{"slug": "sodium", "type": "optionalDependency"}, {"slug": "irisshaders", "type": "optionalDependency"}]'
-upload "Earth Platform $VERSION (NeoForge)" "earthplatform-$TAG.jar" "[$minecraft, $neoforge]" "$optional"
 if [ ! -f "$dist/earthplatform-fabric-$TAG.jar" ]; then echo "$TAG has no Fabric jar (Fabric builds start at build 67)."; exit 0; fi
 upload "Earth Platform $VERSION (Fabric)" "earthplatform-fabric-$TAG.jar" "$(jq -nc --argjson q "${quilt:-null}" "[$minecraft, $fabric, \$q] | map(select(. != null))")" \
   "$(jq -c '. + [{"slug": "fabric-api", "type": "requiredDependency"}]' <<<"$optional")"

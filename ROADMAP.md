@@ -4,7 +4,7 @@ Last updated November 12, 2026, at build 73.
 
 ## Where things stand
 
-Earth Platform is playable and public. You can start anywhere on Earth at one block per meter, play ordinary survival, and see terrain out to about 94 km. It runs on NeoForge and Fabric for Minecraft 1.21.1.
+Earth Platform is playable and public. You can start anywhere on Earth at one block per meter, play ordinary survival, and see terrain out to about 94 km. It runs on Fabric for Minecraft 1.21.1.
 
 Releases are public alphas on [Modrinth](https://modrinth.com/mod/YnuWHcwC) and the [Releases page](https://github.com/pirut/earth-platform/releases). A pull request labeled `build` that merges to `main` builds one, numbered `0.1.0-alpha.N`, where N is the build number. Each release batches several fixes rather than shipping them one at a time. Fix pull requests merge without publishing.
 
@@ -19,8 +19,8 @@ Releases are public alphas on [Modrinth](https://modrinth.com/mod/YnuWHcwC) and 
 - **Getting around.** Spawn picker with a list of places and a globe, `/earth` commands, a travel map in creative (N), and a jet stream for elytra above Y 9,200.
 - **Shaders.** Iris with the stock Photon download, including on Macs, and Voxy- or Distant Horizons-capable packs.
 - **Servers and other mods.** Dedicated servers with several players, and a long list of popular mods tested in the Earth world (see the [FAQ](docs/FAQ.md#which-other-mods-work)).
-- **Releases.** CI on pull requests, and a release when a pull request labeled `build` is merged, which goes up on GitHub and Modrinth for both loaders.
-- **Fabric.** A Fabric build alongside the NeoForge one, from build 67.
+- **Releases.** CI on pull requests, and a release when a pull request labeled `build` is merged, which goes up on GitHub and Modrinth.
+- **Fabric.** The Fabric build, from build 67; it is now the only loader.
 - **Finding and sharing places.** Town search on the globe and `/earth visit`, place codes (`/earth code`), F8 postcards, and one-click `.mrpack` install packs, from build 70.
 - **Arriving fast.** Quick stand-ins fill the whole far view within seconds of arriving, and far terrain is kept on disk with the world, from build 70.
 - **Flying and rendering.** Near-cube frame budgets, spyglass fixes and opaque distant water, plus experimental flight surface streaming, layered clouds, curvature and haze, from build 71. Most experimental parts are off by default; see [Flying and far terrain](docs/FLIGHT-RENDERING.md).
@@ -51,7 +51,7 @@ Nothing here is promised. These are the known gaps, roughly in the order we expe
 
 ## How it works
 
-For people reading the code. The engine lives in `minecraft/src/main/java/io/earthplatform/minecraft/cubic`.
+For people reading the code. The engine lives in `fabric/src/main/java/io/earthplatform/minecraft/cubic`.
 
 - **Cubes.** The world is stored as 16-block cubes keyed by their real coordinates. A small carrier dimension provides chunk tickets, entities and ticking, and mixins on `Level` send every block, light, biome and height lookup to the cube store. The server generates, loads, lights and saves cubes on worker threads and sends them to each player nearest first. The client meshes them off the main thread with the vanilla renderers.
 - **Far terrain.** A pyramid of voxel sections around the player, six levels, each twice as coarse as the one before. Each column carries its exact ground and water height so distant land sits at the right height instead of snapping to voxel edges. The client packs faces into large GPU buffers and draws them with its own shader. Shader packs that ship Voxy support code (Photon does) light far terrain through that code.
