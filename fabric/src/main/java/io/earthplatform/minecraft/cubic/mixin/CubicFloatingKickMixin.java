@@ -37,5 +37,11 @@ abstract class CubicFloatingKickMixin {
         double y = player.getY(), last = earthplatform$lastY;
         earthplatform$lastY = y;
         if (y < last - 0.05 && CubicLevel.of(player.level()) != null) clientIsFloating = false;
+        // Held in the air of cubes still to come, a player has not fallen: nothing counts toward fall damage.
+        if (CubicLevel.of(player.level()) instanceof ServerCubeWorld cubes && !player.isSpectator()
+                && !io.earthplatform.minecraft.cubic.jet.JetStream.aboveTerrain(player)
+                && (!cubes.sentTo(player, player.getBlockX(), player.getBlockY(), player.getBlockZ())
+                || !cubes.sentTo(player, player.getBlockX(), player.getBlockY() - 2, player.getBlockZ())))
+            player.resetFallDistance();
     }
 }
