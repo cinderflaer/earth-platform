@@ -1,7 +1,24 @@
 package io.earthplatform.minecraft.cubic.play.client;
 
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
+import io.earthplatform.minecraft.EarthPlatformMod;
 import io.earthplatform.minecraft.cubic.Cubic;
 import io.earthplatform.minecraft.cubic.client.ClientCubeWorld;
 import io.earthplatform.minecraft.cubic.client.LevelPasses;
@@ -10,10 +27,16 @@ import io.earthplatform.minecraft.platform.Loader;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.level.material.FogType;
+import net.minecraft.world.phys.Vec3;
 import java.util.Arrays;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import org.joml.Matrix4f;
 
 /**
@@ -130,10 +153,107 @@ public final class EarthClouds {
             return true;
         }
 
-        // TODO(26.2): the deck drew with RenderSystem's fixed state, the position-texture-colour ShaderInstance, Tesselator and
-        // BufferUploader, which 26.x replaced with render pipelines and render passes. Until the deck is drawn with those,
-        // vanilla's clouds draw (false); clearance, followGround, soft and vertex below are what it drew with.
+        if (!deckFailed) {
+            try {
+                return drawDeck(level, view, partialTick, camX, camY, camZ, height);
+            } catch (RuntimeException | LinkageError failure) {
+                deckFailed = true;
+                EarthPlatformMod.LOGGER.warn("The Earth cloud deck could not draw; vanilla's clouds draw instead", failure);
+            }
+        }
         return false;
+    }
+
+    /** Set when the deck's pipeline or pass failed once: vanilla's clouds draw from then on. */
+    private static boolean deckFailed;
+    private static RenderPipeline deckPipeline;
+
+    /**
+     * The deck's pipeline: vanilla's position-texture-colour shaders, blended, depth tested against the terrain
+     * without writing, and not culled, as the deck drew before render pipelines.
+     */
+    private static RenderPipeline deckPipeline() {
+        if (deckPipeline == null) {
+            deckPipeline = RenderPipeline.builder()
+                    .withLocation(Identifier.fromNamespaceAndPath("earthplatform", "pipeline/earth_clouds"))
+                    .withVertexShader("core/position_tex_color")
+                    .withFragmentShader("core/position_tex_color")
+                    .withBindGroupLayout(BindGroupLayouts.GLOBALS)
+                    .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+                    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
+                    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                    .withCull(false)
+                    .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+                    .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                    .build();
+        }
+        return deckPipeline;
+    }
+
+    /** Draws the deck in a render pass on the game's cloud target, as vanilla's clouds do; false if there is nothing to draw into. */
+    private static boolean drawDeck(ClientLevel level, Matrix4f view, float partialTick, double camX, double camY, double camZ, int height) {
+        Minecraft minecraft = Minecraft.getInstance();
+        RenderTarget target = minecraft.levelRenderer.cloudsTarget();
+        if (target == null) target = minecraft.gameRenderer.mainRenderTarget();
+        GpuTextureView colourView = target.getColorTextureView(), depthView = target.getDepthTextureView();
+        if (colourView == null) return false;
+
+        double under = followGround(level);
+        double deck = Double.isNaN(under) ? SEA + height : Math.max(SEA + height, under + ABOVE_GROUND);
+        double y = deck - camY;
+        // Far enough that the faded rim sits low on the horizon, near enough to keep cells visible.
+        double radius = Math.max(8_000, 6 * Math.abs(y));
+        double drift = (level.getGameTime() + partialTick) * WIND;
+        int argb = level.environmentAttributes().getValue(EnvironmentAttributes.CLOUD_COLOR, new Vec3(camX, camY, camZ));
+        float r = ARGB.red(argb) / 255f, g = ARGB.green(argb) / 255f, b = ARGB.blue(argb) / 255f;
+
+        GpuTextureView texture = minecraft.getTextureManager().getTexture(soft()).getTextureView();
+        double step = 2 * radius / GRID;
+        float[] clear = clearance(deck, camX, camZ, radius, step);
+        MeshData mesh;
+        // The vertices stay relative to the camera; the view's turn goes in as the model-view, with the game's projection.
+        try (ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 18)) {
+            BufferBuilder buffer = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+            for (Layer layer : LAYERS) {
+                double period = 256 * CELL * layer.size, cos = Math.cos(layer.turn), sin = Math.sin(layer.turn);
+                double worldX = camX + drift, worldZ = camZ;
+                double baseU = frac((cos * worldX - sin * worldZ) / period + layer.shift), baseV = frac((sin * worldX + cos * worldZ) / period);
+                for (int i = 0; i < GRID; i++) {
+                    for (int j = 0; j < GRID; j++) {
+                        double x0 = -radius + i * step, z0 = -radius + j * step;
+                        vertex(buffer, layer, x0, y, z0, radius, period, baseU, baseV, r, g, b, clear[i * (GRID + 1) + j]);
+                        vertex(buffer, layer, x0, y, z0 + step, radius, period, baseU, baseV, r, g, b, clear[i * (GRID + 1) + j + 1]);
+                        vertex(buffer, layer, x0 + step, y, z0 + step, radius, period, baseU, baseV, r, g, b, clear[(i + 1) * (GRID + 1) + j + 1]);
+                        vertex(buffer, layer, x0 + step, y, z0, radius, period, baseU, baseV, r, g, b, clear[(i + 1) * (GRID + 1) + j]);
+                    }
+                }
+            }
+            mesh = buffer.buildOrThrow();
+        }
+        try (mesh) {
+            int indices = mesh.drawState().indexCount();
+            if (indices == 0) return true;
+            var device = RenderSystem.getDevice();
+            GpuBuffer vertices = device.createBuffer(() -> "Earth clouds", GpuBuffer.USAGE_VERTEX, mesh.vertexBuffer());
+            try {
+                GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(view));
+                var sequential = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+                GpuBuffer index = sequential.getBuffer(indices);
+                try (RenderPass pass = device.createCommandEncoder().createRenderPass(() -> "Earth clouds", colourView, Optional.empty(), depthView, OptionalDouble.empty())) {
+                    pass.setPipeline(deckPipeline());
+                    RenderSystem.bindDefaultUniforms(pass);
+                    pass.setUniform("DynamicTransforms", transform);
+                    pass.bindTexture("Sampler0", texture, RenderSystem.getSamplerCache().getRepeat(FilterMode.LINEAR));
+                    pass.setVertexBuffer(0, vertices.slice());
+                    pass.setIndexBuffer(index, sequential.type());
+                    pass.drawIndexed(indices, 1, 0, 0, 0);
+                }
+            } finally {
+                vertices.close();
+            }
+        }
+        return true;
     }
     /**
      * The last clearance worked out and what it was worked out from: the far columns held, the deck,
@@ -225,13 +345,13 @@ public final class EarthClouds {
 
     private static final Layer[] LAYERS = {new Layer(1.0, 0.0, 0.0, 0.55), new Layer(0.7, 1.9, 0.37, 0.5)};
 
-    private static void vertex(BufferBuilder buffer, Matrix4f view, Layer layer, double x, double y, double z, double radius, double period,
+    private static void vertex(BufferBuilder buffer, Layer layer, double x, double y, double z, double radius, double period,
                                double baseU, double baseV, float r, float g, float b, float clear) {
         double distance = Math.sqrt(x * x + z * z) / radius;
         // Solid overhead, fading out over the outer half so no edge shows.
         double fade = 1 - smooth((distance - 0.45) / 0.55);
         double cos = Math.cos(layer.turn), sin = Math.sin(layer.turn);
-        buffer.addVertex(view, (float) x, (float) y, (float) z)
+        buffer.addVertex((float) x, (float) y, (float) z)
                 .setUv((float) (baseU + (cos * x - sin * z) / period), (float) (baseV + (sin * x + cos * z) / period))
                 .setColor(r, g, b, (float) (layer.opacity * fade * clear));
     }
