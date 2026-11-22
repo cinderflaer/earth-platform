@@ -21,7 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 
 /**
- * WorldEdit in the Earth world. Its NeoForge build reads and writes blocks straight through the
+ * WorldEdit in the Earth world. Its Minecraft build (7.4.5 shares one "coremc" platform between Fabric and NeoForge) reads and writes blocks straight through the
  * LevelChunk under each column, which in the cubic level is the empty 16-block carrier, and takes
  * the world's height from that carrier, so every edit outside Y 0 to 15 failed or crashed. The
  * WorldEdit mixins send those reads and writes to the cubes here instead. A cube no player is near
@@ -70,13 +70,15 @@ public final class WorldEditCompat {
         if (!(CubicLevel.of(level) instanceof ServerCubeWorld cubes)) throw new IllegalStateException("not a cubic level");
         ClassLoader loader = region.getClass().getClassLoader();
         try {
-            Class<?> adapter = Class.forName("com.sk89q.worldedit.neoforge.NeoForgeAdapter", false, loader);
+            // WorldEdit 7.4.5 has one shared Minecraft platform ("coremc"); the Fabric adapter is a singleton over it.
+            Class<?> adapterClass = Class.forName("com.sk89q.worldedit.fabric.FabricAdapter", false, loader);
+            Object adapter = adapterClass.getMethod("get").invoke(null);
             Class<?> vector = Class.forName("com.sk89q.worldedit.math.BlockVector3", false, loader);
             Class<?> holder = Class.forName("com.sk89q.worldedit.world.block.BlockStateHolder", false, loader);
             Class<?> biomeType = Class.forName("com.sk89q.worldedit.world.biome.BiomeType", false, loader);
-            Method toBlockPos = adapter.getMethod("toBlockPos", vector);
-            Method adaptState = adapter.getMethod("adapt", BlockState.class);
-            Method adaptBiome = adapter.getMethod("adapt", net.minecraft.world.level.biome.Biome.class);
+            Method toBlockPos = adapterClass.getMethod("toBlockPos", vector);
+            Method adaptState = adapterClass.getMethod("fromNativeBlockState", BlockState.class);
+            Method adaptBiome = adapterClass.getMethod("fromNativeBiome", net.minecraft.world.level.biome.Biome.class);
             Method setBlock = Class.forName("com.sk89q.worldedit.extent.OutputExtent", false, loader).getMethod("setBlock", vector, holder);
             Method setBiome = Class.forName("com.sk89q.worldedit.extent.OutputExtent", false, loader).getMethod("setBiome", vector, biomeType);
             boolean biomes = (Boolean) options.getClass().getMethod("shouldRegenBiomes").invoke(options);
@@ -95,15 +97,15 @@ public final class WorldEditCompat {
             Map<Long, LevelChunkSection> generated = new HashMap<>();
             for (Map.Entry<Long, CompletableFuture<LevelChunkSection>> cube : pending.entrySet()) generated.put(cube.getKey(), cube.getValue().join());
             for (Object at : (Iterable<?>) region) {
-                BlockPos pos = (BlockPos) toBlockPos.invoke(null, at);
+                BlockPos pos = (BlockPos) toBlockPos.invoke(adapter, at);
                 if (!CubeWorld.inRange(pos.getY())) continue;
                 int cx = pos.getX() >> 4, cy = pos.getY() >> 4, cz = pos.getZ() >> 4;
                 LevelChunkSection section = generated.computeIfAbsent(CubeKey.pack(cx, cy, cz),
                         key -> cubes.generator().generate(cx, cy, cz, new ArrayList<>(), new ArrayList<>()));
-                setBlock.invoke(extent, at, adaptState.invoke(null, section.getBlockState(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15)));
+                setBlock.invoke(extent, at, adaptState.invoke(adapter, section.getBlockState(pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15)));
                 if (biomes) {
                     var biome = section.getNoiseBiome((pos.getX() & 15) >> 2, (pos.getY() & 15) >> 2, (pos.getZ() & 15) >> 2);
-                    setBiome.invoke(extent, at, adaptBiome.invoke(null, biome.value()));
+                    setBiome.invoke(extent, at, adaptBiome.invoke(adapter, biome.value()));
                 }
             }
         } catch (java.lang.reflect.InvocationTargetException failure) {
