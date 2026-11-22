@@ -3,6 +3,7 @@ package io.earthplatform.geography.globe;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -77,10 +78,18 @@ public final class DiskCache {
         Path temp = Files.createTempFile(path.getParent(), prefix, ".part");
         try {
             Files.write(temp, bytes);
-            moveIntoPlace(temp, path);
+            synchronized (stripe(path)) { moveIntoPlace(temp, path); }
         } finally {
             Files.deleteIfExists(temp);
         }
+    }
+
+    /** Locks that keep this process's writers of one file from moving into place at the same moment. */
+    private static final Object[] STRIPES = new Object[64];
+    static { for (int i = 0; i < STRIPES.length; i++) STRIPES[i] = new Object(); }
+
+    private static Object stripe(Path path) {
+        return STRIPES[(path.toAbsolutePath().normalize().hashCode() & 0x7fffffff) % STRIPES.length];
     }
 
     /** Tries of an atomic move before a plain one, waiting {@link #retryWaitMs} doubled between them. */
@@ -153,7 +162,9 @@ public final class DiskCache {
 
     /** A Windows lock or access refusal, as opposed to a missing disk or a full one. */
     static boolean locked(FileSystemException failure) {
-        if (failure instanceof AccessDeniedException) return true;
+        // Windows reports a replace that lost a race with another replace (the target deleted and
+        // recreated between the check and the move) as "already exists" even with REPLACE_EXISTING.
+        if (failure instanceof AccessDeniedException || failure instanceof FileAlreadyExistsException) return true;
         String reason = failure.getReason();
         if (reason == null) reason = failure.getMessage();
         if (reason == null) return false;
