@@ -50,12 +50,12 @@ class TerrainSlabsTest {
 
         Fixture(int ground) {
             var biomes = SurfacePacketFixtures.biomes();
-            section = new LevelChunkSection(biomes);
+            section = new LevelChunkSection(io.earthplatform.minecraft.cubic.gen.SurfacePacketFixtures.factory(biomes));
             slab = Blocks.STONE_SLAB.defaultBlockState();
             slabs = new TerrainSlabs(Map.of(Blocks.GRASS_BLOCK, slab));
             Arrays.fill(height, ground);
             Arrays.fill(water, SurfaceGenerator.DRY);
-            Arrays.fill(cover, new SurfaceGenerator.Surface(biomes.getHolderOrThrow(Biomes.PLAINS),
+            Arrays.fill(cover, new SurfaceGenerator.Surface(biomes.getOrThrow(Biomes.PLAINS),
                     Blocks.GRASS_BLOCK.defaultBlockState(), Blocks.DIRT.defaultBlockState(), 0, 0, 0, 0, 0, false));
         }
     }

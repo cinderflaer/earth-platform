@@ -29,7 +29,7 @@ class FarCoverTest {
     @BeforeAll static void tags() {
         SurfacePacketFixtures.biomes();
         var blocks = BuiltInRegistries.BLOCK;
-        previous = blocks.getTags().collect(Collectors.toMap(p -> p.getFirst(), p -> p.getSecond().stream().toList()));
+        previous = io.earthplatform.minecraft.cubic.testsupport.BoundTags.get(blocks);
         var tags = new java.util.HashMap<>(previous);
         tags.put(BlockTags.LEAVES, blocks.stream().filter(b -> b instanceof LeavesBlock).map(blocks::wrapAsHolder).toList());
         tags.put(BlockTags.LOGS, List.of(blocks.wrapAsHolder(Blocks.OAK_LOG)));
@@ -40,21 +40,21 @@ class FarCoverTest {
         tags.put(BlockTags.SNOW, holders(Blocks.SNOW, Blocks.SNOW_BLOCK, Blocks.POWDER_SNOW));
         tags.put(BlockTags.ICE, holders(Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.FROSTED_ICE));
         tags.put(BlockTags.BASE_STONE_OVERWORLD, holders(Blocks.STONE, Blocks.GRANITE, Blocks.DIORITE, Blocks.ANDESITE, Blocks.TUFF, Blocks.DEEPSLATE));
-        tags.put(BlockTags.TERRACOTTA, holders(Blocks.TERRACOTTA, Blocks.WHITE_TERRACOTTA, Blocks.ORANGE_TERRACOTTA, Blocks.MAGENTA_TERRACOTTA,
-                Blocks.LIGHT_BLUE_TERRACOTTA, Blocks.YELLOW_TERRACOTTA, Blocks.LIME_TERRACOTTA, Blocks.PINK_TERRACOTTA, Blocks.GRAY_TERRACOTTA,
-                Blocks.LIGHT_GRAY_TERRACOTTA, Blocks.CYAN_TERRACOTTA, Blocks.PURPLE_TERRACOTTA, Blocks.BLUE_TERRACOTTA, Blocks.BROWN_TERRACOTTA,
-                Blocks.GREEN_TERRACOTTA, Blocks.RED_TERRACOTTA, Blocks.BLACK_TERRACOTTA));
-        blocks.bindTags(tags);
+        tags.put(BlockTags.TERRACOTTA, holders(Blocks.TERRACOTTA, Blocks.DYED_TERRACOTTA.white(), Blocks.DYED_TERRACOTTA.orange(), Blocks.DYED_TERRACOTTA.magenta(),
+                Blocks.DYED_TERRACOTTA.lightBlue(), Blocks.DYED_TERRACOTTA.yellow(), Blocks.DYED_TERRACOTTA.lime(), Blocks.DYED_TERRACOTTA.pink(), Blocks.DYED_TERRACOTTA.gray(),
+                Blocks.DYED_TERRACOTTA.lightGray(), Blocks.DYED_TERRACOTTA.cyan(), Blocks.DYED_TERRACOTTA.purple(), Blocks.DYED_TERRACOTTA.blue(), Blocks.DYED_TERRACOTTA.brown(),
+                Blocks.DYED_TERRACOTTA.green(), Blocks.DYED_TERRACOTTA.red(), Blocks.DYED_TERRACOTTA.black()));
+        io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(blocks, tags);
     }
 
     private static List<Holder<Block>> holders(Block... blocks) {
         return java.util.Arrays.stream(blocks).map(BuiltInRegistries.BLOCK::wrapAsHolder).toList();
     }
 
-    @AfterAll static void restore() { BuiltInRegistries.BLOCK.bindTags(previous); }
+    @AfterAll static void restore() { io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(BuiltInRegistries.BLOCK, previous); }
 
     @Test void clearingKeepsItsGrassAmongLeavesOnStone() {
-        LevelChunkSection section = new LevelChunkSection(SurfacePacketFixtures.biomes());
+        LevelChunkSection section = new LevelChunkSection(io.earthplatform.minecraft.cubic.gen.SurfacePacketFixtures.factory(SurfacePacketFixtures.biomes()));
         BlockState stone = Blocks.STONE.defaultBlockState(), grass = Blocks.GRASS_BLOCK.defaultBlockState();
         for (int z = 0; z < 16; z++) for (int x = 0; x < 16; x++) {
             boolean clearing = x == 7 && z == 7;
@@ -95,7 +95,7 @@ class FarCoverTest {
 
     @Test void aBuiltVoxelOnLevelOneKeepsItsMaterialInsteadOfTakingTheGroundAround() {
         // One aligned voxel of red wool in flat stone: players' paths, floor patterns and markers are a voxel or two wide.
-        BlockState stone = Blocks.STONE.defaultBlockState(), wool = Blocks.RED_WOOL.defaultBlockState();
+        BlockState stone = Blocks.STONE.defaultBlockState(), wool = Blocks.WOOL.red().defaultBlockState();
         FarColumnMesh plain = new FarColumnMesh(levelOne(null, stone));
         FarColumnMesh marker = new FarColumnMesh(levelOne(wool, stone));
         int cell = 7 * 16 + 7;
@@ -126,7 +126,7 @@ class FarCoverTest {
     @Test void builtBlocksDoNotVoteOnTheirNeighbours() {
         // A 2x2 patch of wool with a stone voxel beside two of its sides, nothing else standing. Were the
         // wool to vote, the stone (no stone neighbours, two wool ones) would take the wool's cover.
-        BlockState stone = Blocks.STONE.defaultBlockState(), wool = Blocks.WHITE_WOOL.defaultBlockState();
+        BlockState stone = Blocks.STONE.defaultBlockState(), wool = Blocks.WOOL.white().defaultBlockState();
         BlockState[] ground = new BlockState[256];
         for (int z = 7; z <= 8; z++) for (int x = 7; x <= 8; x++) ground[z * 16 + x] = wool;
         ground[7 * 16 + 6] = stone;
@@ -196,7 +196,7 @@ class FarCoverTest {
         BlockState stone = Blocks.STONE.defaultBlockState();
         BlockState[] ground = new BlockState[256];
         java.util.Arrays.fill(ground, stone);
-        ground[7 * 16 + 7] = Blocks.RED_WOOL.defaultBlockState();
+        ground[7 * 16 + 7] = Blocks.WOOL.red().defaultBlockState();
         assertEquals(stone, evenCover(2, ground)[7 * 16 + 7], "the wool should be evened to stone at level 2");
         assertEquals(stone, evenCover(4, ground)[7 * 16 + 7], "the wool should be evened to stone at level 4");
         assertNull(evenCover(1, ground)[7 * 16 + 7], "level 1 keeps the wool");
@@ -264,15 +264,15 @@ class FarCoverTest {
 
     @Test void everyBlockTheGeneratorLaysAsGroundIsNatural() {
         for (var ground : io.earthplatform.geography.globe.GroundPalette.Ground.values()) {
-            Block block = BuiltInRegistries.BLOCK.get(net.minecraft.resources.Identifier.withDefaultNamespace(ground.id()));
+            Block block = BuiltInRegistries.BLOCK.get(net.minecraft.resources.Identifier.withDefaultNamespace(ground.id())).orElseThrow().value();
             assertTrue(FarMesher.natural(block.defaultBlockState()), ground.id());
         }
         for (Block block : List.of(Blocks.GRASS_BLOCK, Blocks.DIRT, Blocks.PODZOL, Blocks.MUD, Blocks.MOSS_BLOCK, Blocks.CLAY, Blocks.SNOW_BLOCK,
-                Blocks.POWDER_SNOW, Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.BLACKSTONE, Blocks.GRANITE, Blocks.GREEN_TERRACOTTA,
-                Blocks.CYAN_TERRACOTTA, Blocks.PINK_TERRACOTTA, Blocks.PURPLE_TERRACOTTA, Blocks.RED_MUSHROOM_BLOCK, Blocks.BROWN_MUSHROOM_BLOCK))
+                Blocks.POWDER_SNOW, Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.BLACKSTONE, Blocks.GRANITE, Blocks.DYED_TERRACOTTA.green(),
+                Blocks.DYED_TERRACOTTA.cyan(), Blocks.DYED_TERRACOTTA.pink(), Blocks.DYED_TERRACOTTA.purple(), Blocks.RED_MUSHROOM_BLOCK, Blocks.BROWN_MUSHROOM_BLOCK))
             assertTrue(FarMesher.natural(block.defaultBlockState()), block.getDescriptionId());
-        for (Block block : List.of(Blocks.RED_WOOL, Blocks.OAK_PLANKS, Blocks.BRICKS, Blocks.WHITE_CONCRETE, Blocks.GLASS, Blocks.COBBLESTONE,
-                Blocks.STONE_BRICKS, Blocks.GOLD_BLOCK, Blocks.WHITE_GLAZED_TERRACOTTA))
+        for (Block block : List.of(Blocks.WOOL.red(), Blocks.OAK_PLANKS, Blocks.BRICKS, Blocks.CONCRETE.white(), Blocks.GLASS, Blocks.COBBLESTONE,
+                Blocks.STONE_BRICKS, Blocks.GOLD_BLOCK, Blocks.GLAZED_TERRACOTTA.white()))
             assertFalse(FarMesher.natural(block.defaultBlockState()), block.getDescriptionId());
     }
 
@@ -288,7 +288,7 @@ class FarCoverTest {
             case 'M' -> Blocks.MUD.defaultBlockState();
             case 'I' -> Blocks.PACKED_ICE.defaultBlockState();
             case 'C' -> Blocks.COARSE_DIRT.defaultBlockState();
-            case 'W' -> Blocks.RED_WOOL.defaultBlockState();
+            case 'W' -> Blocks.WOOL.red().defaultBlockState();
             case 'P' -> Blocks.PUMPKIN.defaultBlockState();
             case 'B' -> Blocks.BONE_BLOCK.defaultBlockState();
             case 'K' -> Blocks.COBBLESTONE.defaultBlockState();
@@ -326,7 +326,7 @@ class FarCoverTest {
     }
 
     private static LevelChunkSection section(BlockState[] cells) {
-        LevelChunkSection section = new LevelChunkSection(SurfacePacketFixtures.biomes());
+        LevelChunkSection section = new LevelChunkSection(io.earthplatform.minecraft.cubic.gen.SurfacePacketFixtures.factory(SurfacePacketFixtures.biomes()));
         for (int z = 0; z < 16; z++) for (int x = 0; x < 16; x++)
             if (cells[z * 16 + x] != null) section.setBlockState(x, 0, z, cells[z * 16 + x], false);
         section.recalcBlockCounts();

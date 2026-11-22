@@ -73,8 +73,8 @@ class UndergroundTest {
                 cubes++;
                 // Every block entity a cube starts with sits on a block that takes it.
                 for (CompoundTag tag : blockEntities.subList(before, blockEntities.size())) {
-                    var type = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(net.minecraft.resources.Identifier.parse(tag.getString("id")));
-                    assertTrue(type != null && type.isValid(section.getBlockState(tag.getInt("x") & 15, tag.getInt("y") & 15, tag.getInt("z") & 15)), "block under " + tag);
+                    var type = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(net.minecraft.resources.Identifier.parse(tag.getStringOr("id", ""))).map(net.minecraft.core.Holder::value).orElse(null);
+                    assertTrue(type != null && type.isValid(section.getBlockState(tag.getIntOr("x", 0) & 15, tag.getIntOr("y", 0) & 15, tag.getIntOr("z", 0) & 15)), "block under " + tag);
                 }
                 for (int i = 0; i < 4096; i++) {
                     Block block = section.getBlockState(i & 15, i >> 8, i >> 4 & 15).getBlock();
@@ -94,7 +94,7 @@ class UndergroundTest {
             assertTrue(counts.getOrDefault(ore, 0) > 0, ore);
         assertTrue(counts.getOrDefault("spawner", 0) > 0, "spawners");
         assertTrue(counts.getOrDefault("budding_amethyst", 0) > 0, "geodes");
-        assertEquals(counts.getOrDefault("spawner", 0), (int) blockEntities.stream().filter(t -> t.getString("id").endsWith("mob_spawner")).count());
+        assertEquals(counts.getOrDefault("spawner", 0), (int) blockEntities.stream().filter(t -> t.getStringOr("id", "").endsWith("mob_spawner")).count());
         assertTrue(ms < 25, "generation time per cube " + ms);
     }
 }

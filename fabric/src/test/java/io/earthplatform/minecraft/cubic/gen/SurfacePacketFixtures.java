@@ -9,10 +9,15 @@ import net.minecraft.server.Bootstrap;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.*;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.chunk.PalettedContainerFactory;
 
 /** Synthetic deterministic country: negative heights, shores, ice, mixed cover, forest canopy. */
 public final class SurfacePacketFixtures {
     private static Registry<Biome> registry;
+    /** Paletted container factory over the given biome registry, for building sections. */
+    public static PalettedContainerFactory factory(Registry<Biome> biomes) {
+        return PalettedContainerFactory.create(new RegistryAccess.ImmutableRegistryAccess(java.util.List.of(biomes)));
+    }
     public static synchronized Registry<Biome> biomes() {
         if (registry != null) return registry;
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();

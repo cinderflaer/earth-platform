@@ -28,7 +28,7 @@ class FarBuildsTest {
     @BeforeAll static void registries() { net.minecraft.SharedConstants.tryDetectVersion(); net.minecraft.server.Bootstrap.bootStrap(); }
 
     private static PalettedContainer<BlockState> states() {
-        return new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, Blocks.AIR.defaultBlockState(), PalettedContainer.Strategy.SECTION_STATES);
+        return new PalettedContainer<>(Blocks.AIR.defaultBlockState(), net.minecraft.world.level.chunk.Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY));
     }
 
     @Test void countsOnlySolidBlocksAboveTheGround() {
@@ -84,8 +84,8 @@ class FarBuildsTest {
         java.util.Arrays.fill(tops, (byte) -1);
         tops[17] = 9;
         long key = CubeKey.pack(-300, 40, 5000);
-        assertTrue(builds.put(key, new FarBuilds.Summary(tops, 3, Blocks.RED_WOOL.defaultBlockState())));
-        assertFalse(builds.put(key, new FarBuilds.Summary(tops.clone(), 3, Blocks.RED_WOOL.defaultBlockState())), "the same again changes nothing");
+        assertTrue(builds.put(key, new FarBuilds.Summary(tops, 3, Blocks.WOOL.red().defaultBlockState())));
+        assertFalse(builds.put(key, new FarBuilds.Summary(tops.clone(), 3, Blocks.WOOL.red().defaultBlockState())), "the same again changes nothing");
         builds.flush();
         assertTrue(Files.list(folder.resolve("builds")).findAny().isPresent());
 
@@ -94,7 +94,7 @@ class FarBuildsTest {
         assertEquals(1, found.size());
         assertEquals(9, found.get(key).tops()[17]);
         assertEquals(3, found.get(key).low());
-        assertEquals(Blocks.RED_WOOL.defaultBlockState(), found.get(key).block());
+        assertEquals(Blocks.WOOL.red().defaultBlockState(), found.get(key).block());
         assertTrue(reopened.in(0, 10, 0, 10).isEmpty());
 
         assertTrue(reopened.put(key, null));
@@ -114,12 +114,12 @@ class FarBuildsTest {
             byte[] tops = new byte[256];
             java.util.Arrays.fill(tops, (byte) (cy == 26 ? 3 : 15));
             int low = cy == 6 ? 4 : 0;
-            for (int cz = 0; cz < 4; cz++) for (int cx = 0; cx < 4; cx++) builds.put(CubeKey.pack(cx, cy, cz), new FarBuilds.Summary(tops, low, Blocks.RED_WOOL.defaultBlockState()));
+            for (int cz = 0; cz < 4; cz++) for (int cx = 0; cx < 4; cx++) builds.put(CubeKey.pack(cx, cy, cz), new FarBuilds.Summary(tops, low, Blocks.WOOL.red().defaultBlockState()));
         }
         assertEquals(1, FarBuilds.groundTop(column, 0, 0));
         FarBuilds.fold(level, 0, 0, builds, column, FarBuildsTest::section);
         // Shown voxels k span [64k - 28, 64k + 36): the tower (100-419) fills voxels 2 to 6.
-        for (int k = 2; k <= 6; k++) assertEquals(Blocks.RED_WOOL.defaultBlockState(), ground.getBlockState(0, k, 0), "voxel " + k);
+        for (int k = 2; k <= 6; k++) assertEquals(Blocks.WOOL.red().defaultBlockState(), ground.getBlockState(0, k, 0), "voxel " + k);
         assertTrue(ground.getBlockState(0, 7, 0).isAir(), "nothing above the tower");
         assertEquals(Blocks.DIRT.defaultBlockState(), ground.getBlockState(0, 1, 0), "the ground stays");
         assertTrue(ground.getBlockState(1, 3, 0).isAir(), "only the tower's voxel column");
@@ -136,10 +136,10 @@ class FarBuildsTest {
         java.util.Arrays.fill(tops, (byte) 15);
         // 64x64 cube columns of build (a 1024-block square) from y 312 to 575: one voxel above the ground.
         for (int cy = 19; cy < 36; cy++) for (int cz = 0; cz < 64; cz++) for (int cx = 0; cx < 64; cx++) {
-            builds.put(CubeKey.pack(cx, cy, cz), new FarBuilds.Summary(tops, cy == 19 ? 8 : 0, Blocks.RED_WOOL.defaultBlockState()));
+            builds.put(CubeKey.pack(cx, cy, cz), new FarBuilds.Summary(tops, cy == 19 ? 8 : 0, Blocks.WOOL.red().defaultBlockState()));
         }
         assertTrue(FarBuilds.fold(8, 0, 0, builds, column, FarBuildsTest::section) > 0);
-        assertEquals(Blocks.RED_WOOL.defaultBlockState(), column.sections.get(0).getBlockState(0, 2, 0), "the voxel right above the ground");
+        assertEquals(Blocks.WOOL.red().defaultBlockState(), column.sections.get(0).getBlockState(0, 2, 0), "the voxel right above the ground");
     }
 
     @Test void aSmallBuildStaysOutOfCoarseVoxels() {
@@ -166,12 +166,12 @@ class FarBuildsTest {
             plains = biomes.getOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
         }
         Holder<Biome> biome = plains;
-        return new LevelChunkSection(states(), new PalettedContainer<>(new net.minecraft.core.IdMap<>() {
+        return new LevelChunkSection(states(), new PalettedContainer<>(biome, net.minecraft.world.level.chunk.Strategy.createForBiomes(new net.minecraft.core.IdMap<Holder<Biome>>() {
             @Override public int getId(Holder<Biome> value) { return 0; }
             @Override public Holder<Biome> byId(int id) { return biome; }
             @Override public int size() { return 1; }
             @Override public java.util.Iterator<Holder<Biome>> iterator() { return java.util.List.of(biome).iterator(); }
-        }, biome, PalettedContainer.Strategy.SECTION_BIOMES));
+        })));
     }
 
     /** One section of ground two voxels deep, lowered by {@code drop} blocks. */

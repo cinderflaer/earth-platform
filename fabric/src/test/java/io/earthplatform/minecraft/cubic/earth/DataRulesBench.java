@@ -149,7 +149,7 @@ class DataRulesBench {
             }
             tags.put(net.minecraft.tags.TagKey.create(Registries.BLOCK, net.minecraft.resources.Identifier.parse(name)), members);
         }
-        blocks.bindTags(tags);
+        io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(blocks, tags);
     }
 
     private static int[] colours(java.util.zip.ZipFile jar, String name) throws java.io.IOException {
@@ -180,7 +180,7 @@ class DataRulesBench {
             if (wet) continue;
             land++;
             tops.merge(BuiltInRegistries.BLOCK.getKey(surface.top().getBlock()).getPath() + " in "
-                    + surface.biome().unwrapKey().map(key -> key.location().getPath()).orElse("?"), 1, Integer::sum);
+                    + surface.biome().unwrapKey().map(key -> key.identifier().getPath()).orElse("?"), 1, Integer::sum);
         }
         StringBuilder text = new StringBuilder();
         int shown = land;

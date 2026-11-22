@@ -92,7 +92,7 @@ class CubeLightTest {
             for (int c = 0; c < 27; c++) {
                 int kind = random.nextInt(6);
                 if (kind == 0) continue;
-                PalettedContainer<BlockState> container = new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, palette[0], PalettedContainer.Strategy.SECTION_STATES);
+                PalettedContainer<BlockState> container = new PalettedContainer<>(palette[0], net.minecraft.world.level.chunk.Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY));
                 states[c] = container;
                 if (kind == 1) continue;
                 BlockState only = palette[random.nextInt(palette.length)];

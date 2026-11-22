@@ -119,7 +119,7 @@ class FarSmoothGroundTest {
     }
 
     private static FarMesher.Side side(int cx, int cz) {
-        LevelChunkSection section = new LevelChunkSection(SurfacePacketFixtures.biomes());
+        LevelChunkSection section = new LevelChunkSection(io.earthplatform.minecraft.cubic.gen.SurfacePacketFixtures.factory(SurfacePacketFixtures.biomes()));
         for (int z = 0; z < 16; z++) for (int x = 0; x < 16; x++) {
             int top = Math.clamp(8 + Math.floorDiv(cx * 16 + x, 8), 0, 15);
             for (int y = 0; y <= top; y++) section.setBlockState(x, y, z, Blocks.STONE.defaultBlockState(), false);
