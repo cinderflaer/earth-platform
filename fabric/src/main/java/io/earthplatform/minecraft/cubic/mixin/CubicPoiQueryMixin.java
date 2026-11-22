@@ -20,7 +20,7 @@ abstract class CubicPoiQueryMixin {
     @Inject(method = "getInChunk", at = @At("RETURN"), cancellable = true)
     private void earthplatform$cubicSections(Predicate<Holder<PoiType>> types, ChunkPos chunk, PoiManager.Occupancy occupancy,
                                              CallbackInfoReturnable<Stream<PoiRecord>> result) {
-        Stream<PoiRecord> cubic = ((CubicPoiStore) this).earthplatform$cubicSections(chunk.toLong())
+        Stream<PoiRecord> cubic = ((CubicPoiStore) this).earthplatform$cubicSections(chunk.pack())
                 .flatMap(section -> ((PoiSection) section).getRecords(types, occupancy));
         result.setReturnValue(Stream.concat(result.getReturnValue(), cubic));
     }

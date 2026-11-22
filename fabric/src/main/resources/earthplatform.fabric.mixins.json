@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "io.earthplatform.minecraft.fabric.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "mixins": [
     "ConnectionAccess",
     "ElytraWearMixin",
@@ -17,7 +17,6 @@
     "DebugScreenMixin",
     "EarthOpenWorldMixin",
     "FogRendererHooksMixin",
-    "LevelRendererStagesMixin",
     "MinecraftHooksMixin",
     "PresetEditorMixin",
     "SpriteContentsAccess"

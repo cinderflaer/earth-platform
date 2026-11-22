@@ -47,7 +47,7 @@ abstract class CubicStructureManagerMixin {
         if (cubes == null) return;
         Map<Structure, LongSet> found = new HashMap<>();
         for (StructureStart start : cubes.generator().structureStarts(pos.getX() >> 4, pos.getZ() >> 4))
-            found.computeIfAbsent(start.getStructure(), s -> new LongOpenHashSet()).add(start.getChunkPos().toLong());
+            found.computeIfAbsent(start.getStructure(), s -> new LongOpenHashSet()).add(start.getChunkPos().pack());
         result.setReturnValue(found);
     }
 
@@ -73,7 +73,7 @@ abstract class CubicStructureManagerMixin {
         ServerCubeWorld cubes = earthplatform$cubes();
         if (cubes == null) return;
         List<StructureStart> found = new ArrayList<>();
-        for (StructureStart start : cubes.generator().structureStarts(chunk.x, chunk.z)) if (wanted.test(start.getStructure())) found.add(start);
+        for (StructureStart start : cubes.generator().structureStarts(chunk.x(), chunk.z())) if (wanted.test(start.getStructure())) found.add(start);
         result.setReturnValue(found);
     }
 

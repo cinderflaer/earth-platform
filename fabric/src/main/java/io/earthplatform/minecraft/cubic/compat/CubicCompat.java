@@ -25,10 +25,10 @@ public final class CubicCompat {
             dhSettled = DhCompat.update(now);
             if (dhSettled && now && !toldAboutDh && minecraft.player != null) {
                 toldAboutDh = true;
-                minecraft.player.displayClientMessage(Component.literal(DhCompat.paused()
+                minecraft.player.sendSystemMessage(Component.literal(DhCompat.paused()
                         ? "Distant Horizons is paused in the Earth world, which draws its own distant terrain. It runs as usual in other dimensions."
                         : "This Distant Horizons version can't be paused automatically. Turn its rendering off while you're in the Earth world, which draws its own distant terrain.")
-                        .withStyle(ChatFormatting.GRAY), false);
+                        .withStyle(ChatFormatting.GRAY));
             }
         }
         ClientCubeWorld world = ClientCubeWorld.current();

@@ -23,7 +23,7 @@ abstract class EarthOpenWorldMixin {
             target = "Lnet/minecraft/world/level/storage/WorldData;worldGenSettingsLifecycle()Lcom/mojang/serialization/Lifecycle;"))
     private Lifecycle earthplatform$trustEarth(WorldData data, Operation<Lifecycle> original,
                                                LevelStorageSource.LevelStorageAccess storage, WorldStem stem, PackRepository packs, Runnable onFail) {
-        boolean earth = stem.registries().compositeAccess().registryOrThrow(Registries.LEVEL_STEM).containsKey(Cubic.LEVEL.location());
+        boolean earth = stem.registries().compositeAccess().lookupOrThrow(Registries.LEVEL_STEM).containsKey(Cubic.LEVEL.identifier());
         return earth ? Lifecycle.stable() : original.call(data);
     }
 }

@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class CubicJetWeatherMixin {
     @Inject(method = {"getRainLevel", "getThunderLevel"}, at = @At("RETURN"), cancellable = true)
     private void earthplatform$clearAbove(float partialTick, CallbackInfoReturnable<Float> result) {
-        if (!((Level) (Object) this).isClientSide || result.getReturnValueF() <= 0.0F || ClientCubeWorld.current() == null) return;
+        if (!((Level) (Object) this).isClientSide() || result.getReturnValueF() <= 0.0F || ClientCubeWorld.current() == null) return;
         var player = Minecraft.getInstance().player;
         if (player == null || player.level() != (Object) this) return;
         result.setReturnValue(result.getReturnValueF() * JetStream.weather(player.getY()));

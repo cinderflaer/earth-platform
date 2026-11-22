@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -45,14 +46,14 @@ final class FarDistanceSlider extends AbstractSliderButton {
 
     private boolean held;
 
-    @Override public void onClick(double mouseX, double mouseY) {
+    @Override public void onClick(MouseButtonEvent event, boolean doubleClick) {
         held = true;
-        super.onClick(mouseX, mouseY);
+        super.onClick(event, doubleClick);
     }
 
-    @Override public void onRelease(double mouseX, double mouseY) {
+    @Override public void onRelease(MouseButtonEvent event) {
         held = false;
-        super.onRelease(mouseX, mouseY);
+        super.onRelease(event);
         EarthConfig.setDetail(detail());
     }
 

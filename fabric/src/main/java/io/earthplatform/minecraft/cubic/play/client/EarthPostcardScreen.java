@@ -16,7 +16,7 @@ import net.minecraft.util.Util;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -33,7 +33,7 @@ import org.lwjgl.glfw.GLFW;
  * size and under any shader pack.
  */
 public final class EarthPostcardScreen extends Screen {
-    public static final KeyMapping KEY = new KeyMapping("key.earthplatform.postcard", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F8, "key.categories.earthplatform");
+    public static final KeyMapping KEY = new KeyMapping("key.earthplatform.postcard", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F8, EarthFlight.KEYS);
     /** Frames drawn before the picture is taken, so the hotbar and hand are gone from it and far terrain has had a moment to settle. */
     private static final int FRAMES = 4;
 
@@ -48,15 +48,15 @@ public final class EarthPostcardScreen extends Screen {
         this.detail = detail;
         this.code = code;
         Minecraft minecraft = Minecraft.getInstance();
-        hidGui = minecraft.options.hideGui;
-        minecraft.options.hideGui = true;
+        hidGui = minecraft.gui.hud.isHidden();
+        if (!hidGui) minecraft.gui.hud.toggle();
     }
 
     /** Called every client tick: the key asks the server where we are. */
     public static void clientTick() {
         Minecraft minecraft = Minecraft.getInstance();
         while (KEY.consumeClick()) {
-            if (minecraft.player != null && minecraft.screen == null) minecraft.player.connection.sendCommand("earth postcard");
+            if (minecraft.player != null && minecraft.gui.screen() == null) minecraft.player.connection.sendCommand("earth postcard");
         }
     }
 
@@ -64,12 +64,12 @@ public final class EarthPostcardScreen extends Screen {
     public static void received(EarthPostcard.Payload payload) {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> {
-            if (minecraft.player == null || minecraft.screen != null) return;
+            if (minecraft.player == null || minecraft.gui.screen() != null) return;
             double latitude = payload.latitude(), longitude = payload.longitude();
             String code = EarthPostcard.code(latitude, longitude, EarthPostcard.bearing(minecraft.player.getYRot()));
             String detail = String.format(Locale.ROOT, "%.4f° %s, %.4f° %s  ·  %,d m  ·  /earth code %s",
                     Math.abs(latitude), latitude < 0 ? "S" : "N", Math.abs(longitude), longitude < 0 ? "W" : "E", payload.meters(), code);
-            minecraft.setScreen(new EarthPostcardScreen(placeName(latitude, longitude), detail, code));
+            minecraft.gui.setScreen(new EarthPostcardScreen(placeName(latitude, longitude), detail, code));
         });
     }
 
@@ -89,29 +89,30 @@ public final class EarthPostcardScreen extends Screen {
     @Override public boolean isPauseScreen() { return false; }
     @Override public boolean shouldCloseOnEsc() { return false; }
     // No blur, no dimming: the world is the picture.
-    @Override public void renderBackground(GuiGraphics gui, int mouseX, int mouseY, float partialTick) {}
+    @Override public void extractBackground(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick) {}
 
-    @Override public void render(GuiGraphics gui, int mouseX, int mouseY, float partialTick) {
+    @Override public void extractRenderState(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick) {
         int lines = place.isEmpty() ? 1 : 2, band = 12 * lines + 12;
         gui.fillGradient(0, height - band - 16, width, height - band, 0x00000000, 0x90000000);
         gui.fill(0, height - band, width, height, 0x90000000);
         int y = height - band + 4;
         if (!place.isEmpty()) {
-            gui.drawString(font, place, 10, y, 0xFFFFFF);
+            gui.text(font, place, 10, y, 0xFFFFFFFF);
             y += 12;
         }
-        gui.drawString(font, detail, 10, y, 0xB8E2FF);
+        gui.text(font, detail, 10, y, 0xFFB8E2FF);
         String mark = "Earth Platform";
-        gui.drawString(font, mark, width - 10 - font.width(mark), height - 16, 0xFFFFFF);
-        gui.flush();
+        gui.text(font, mark, width - 10 - font.width(mark), height - 16, 0xFFFFFFFF);
         if (++frames >= FRAMES && !taken) {
             taken = true;
-            save(Screenshot.takeScreenshot(minecraft.getMainRenderTarget()));
-            minecraft.setScreen(null);
+            // Since 26.x the frame draws after this screen has handed over what it shows, so the picture is the last frame drawn, which
+            // already carries this caption; it arrives once the game has read it back.
+            Screenshot.takeScreenshot(minecraft.gameRenderer.mainRenderTarget(), this::save);
+            minecraft.gui.setScreen(null);
         }
     }
 
-    @Override public void removed() { minecraft.options.hideGui = hidGui; }
+    @Override public void removed() { if (minecraft.gui.hud.isHidden() != hidGui) minecraft.gui.hud.toggle(); }
 
     private void save(NativeImage image) {
         File folder = new File(minecraft.gameDirectory, "screenshots");
@@ -124,16 +125,16 @@ public final class EarthPostcardScreen extends Screen {
                 image.writeToFile(file);
                 told = Component.translatable("earthplatform.postcard.saved",
                         Component.literal(file.getName()).withStyle(style -> style.withUnderlined(true)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, file.getAbsolutePath()))),
+                                .withClickEvent(new ClickEvent.OpenFile(file.getAbsolutePath()))),
                         Component.literal(code).withStyle(style -> style.withColor(ChatFormatting.AQUA)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, code))
-                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable("earthplatform.postcard.copy")))));
+                                .withClickEvent(new ClickEvent.CopyToClipboard(code))
+                                .withHoverEvent(new HoverEvent.ShowText(Component.translatable("earthplatform.postcard.copy")))));
             } catch (Exception failure) {
                 EarthPlatformMod.LOGGER.warn("Postcard could not be saved: {}", failure.toString());
                 told = Component.translatable("earthplatform.postcard.failed", failure.getMessage()).withStyle(ChatFormatting.RED);
             }
             Component line = told;
-            minecraft.execute(() -> minecraft.gui.getChat().addMessage(line));
+            minecraft.execute(() -> minecraft.gui.hud.getChat().addClientSystemMessage(line));
         });
     }
 }

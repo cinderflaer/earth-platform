@@ -17,7 +17,6 @@ import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -84,7 +83,7 @@ public final class CubicMaps {
 
     /** The client cube store behind this level, if it is the cubic world and we are on its thread. */
     @Nullable public static ClientCubeWorld cubes(@Nullable Level level) {
-        if (level == null || !level.isClientSide || !Cubic.isCubic(level.dimension())) return null;
+        if (level == null || !level.isClientSide() || !Cubic.isCubic(level.dimension())) return null;
         return CubicLevel.of(level) instanceof ClientCubeWorld world && world.isOwnerThread() ? world : null;
     }
 
@@ -104,12 +103,12 @@ public final class CubicMaps {
     /** Heightmap value (first free Y) of a column; {@code x} and {@code z} may be chunk-local. */
     public static int height(ClientCubeWorld world, ChunkAccess chunk, int x, int z) {
         ChunkPos pos = chunk.getPos();
-        return world.skyTop((pos.x << 4) + (x & 15), (pos.z << 4) + (z & 15)) + 1;
+        return world.skyTop((pos.x() << 4) + (x & 15), (pos.z() << 4) + (z & 15)) + 1;
     }
 
     public static BlockState state(ClientCubeWorld world, ChunkAccess chunk, BlockPos local) {
         ChunkPos pos = chunk.getPos();
-        return world.getBlockState(new BlockPos((pos.x << 4) + (local.getX() & 15), local.getY(), (pos.z << 4) + (local.getZ() & 15)));
+        return world.getBlockState(new BlockPos((pos.x() << 4) + (local.getX() & 15), local.getY(), (pos.z() << 4) + (local.getZ() & 15)));
     }
 
     /**
@@ -120,7 +119,7 @@ public final class CubicMaps {
     @Nullable public static LevelChunk standIn(ClientCubeWorld world, int chunkX, int chunkZ) {
         ClientLevel level = world.client();
         if (standInLevel != level) { STAND_INS.clear(); standInLevel = level; }
-        long key = ChunkPos.asLong(chunkX, chunkZ);
+        long key = ChunkPos.pack(chunkX, chunkZ);
         LevelChunk chunk = STAND_INS.get(key);
         if (chunk != null) return chunk;
         if (world.columnTops(chunkX, chunkZ) == null) return null;
@@ -155,13 +154,13 @@ public final class CubicMaps {
     public static void columnChanged(ClientLevel level, int chunkX, int chunkZ) {
         if (!ANY) return;
         if (XAERO) {
-            LevelChunk chunk = standInLevel == level ? STAND_INS.get(ChunkPos.asLong(chunkX, chunkZ)) : null;
+            LevelChunk chunk = standInLevel == level ? STAND_INS.get(ChunkPos.pack(chunkX, chunkZ)) : null;
             if (chunk != null) {
                 clear(chunk, MINIMAP_CLEAN);
                 clear(chunk, WORLDMAP_CLEAN);
             }
         }
-        if (SNAPSHOTS) DIRTY.add(ChunkPos.asLong(chunkX, chunkZ));
+        if (SNAPSHOTS) DIRTY.add(ChunkPos.pack(chunkX, chunkZ));
     }
 
     /** Rebuilds a few dirty snapshots and forgets far stand-ins; runs every client tick while in the cubic world. */
@@ -207,7 +206,7 @@ public final class CubicMaps {
 
     /** The latest snapshot of a column, from any thread; null until its cubes have arrived. */
     @Nullable public static Column column(int chunkX, int chunkZ) {
-        return COLUMNS.get(ChunkPos.asLong(chunkX, chunkZ));
+        return COLUMNS.get(ChunkPos.pack(chunkX, chunkZ));
     }
 
     /** Whether the player is in the cubic world, from any thread. */
@@ -225,7 +224,7 @@ public final class CubicMaps {
         int from = Math.min((low >> 4) - BELOW_SURFACE, playerCubeY - AROUND_PLAYER);
         int to = Math.max(high >> 4, playerCubeY + AROUND_PLAYER);
         if (to - from + 1 > MAX_SECTIONS) from = to - MAX_SECTIONS + 1;
-        var biomes = world.client().registryAccess().registryOrThrow(Registries.BIOME);
+        var biomes = net.minecraft.world.level.chunk.PalettedContainerFactory.create(world.client().registryAccess());
         LevelChunkSection[] sections = new LevelChunkSection[to - from + 1];
         boolean any = false;
         LevelChunkSection empty = null;

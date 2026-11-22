@@ -71,7 +71,9 @@ public final class FabricPlatform implements Platform {
     }
 
     /** What vanilla's block entity data packet does with the tag. */
-    @Override public void handleUpdateTag(BlockEntity entity, CompoundTag tag, HolderLookup.Provider registries) { entity.loadWithComponents(tag, registries); }
+    @Override public void handleUpdateTag(BlockEntity entity, CompoundTag tag, HolderLookup.Provider registries) {
+        entity.loadWithComponents(net.minecraft.world.level.storage.TagValueInput.create(net.minecraft.util.ProblemReporter.DISCARDING, registries, tag));
+    }
 
     @Override public CompoundTag persistentData(Entity entity) { return new CompoundTag(); }
 

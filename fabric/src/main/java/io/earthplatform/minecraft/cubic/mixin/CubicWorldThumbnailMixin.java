@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import io.earthplatform.minecraft.cubic.client.ClientCubeWorld;
 import io.earthplatform.minecraft.cubic.client.WorldThumbnailReadiness;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.extract.LevelExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(GameRenderer.class)
 abstract class CubicWorldThumbnailMixin {
     @WrapOperation(method = "takeAutoScreenshot", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/LevelRenderer;countRenderedSections()I"))
-    private int earthplatform$thumbnailSections(LevelRenderer renderer, Operation<Integer> original) {
+            target = "Lnet/minecraft/client/renderer/extract/LevelExtractor;countRenderedSections()I"))
+    private int earthplatform$thumbnailSections(LevelExtractor renderer, Operation<Integer> original) {
         ClientCubeWorld world = ClientCubeWorld.current();
         if (world == null) return original.call(renderer);
         return WorldThumbnailReadiness.ready(world.renderer().visibleMeshCount(), world.renderer().pendingCount(),

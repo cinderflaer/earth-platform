@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(PathNavigation.class)
 abstract class CubicNavigationMixin {
     @WrapOperation(method = "createPath(Ljava/util/Set;IZIF)Lnet/minecraft/world/level/pathfinder/Path;",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinBuildHeight()I"))
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinY()I"))
     private int earthplatform$cubicFloor(Level level, Operation<Integer> original) {
         return CubicLevel.of(level) != null ? CubeWorld.MIN_Y : original.call(level);
     }

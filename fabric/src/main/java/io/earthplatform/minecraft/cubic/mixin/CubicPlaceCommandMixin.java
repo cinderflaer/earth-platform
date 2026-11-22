@@ -58,7 +58,7 @@ abstract class CubicPlaceCommandMixin {
         earthplatform$load(cubes, pos, from, to, box.minY(), box.maxY());
         ChunkPos.rangeClosed(from, to).forEach(chunk -> start.placeInChunk(level, level.structureManager(), view, level.getRandom(),
                 new BoundingBox(chunk.getMinBlockX(), CubeWorld.MIN_Y, chunk.getMinBlockZ(), chunk.getMaxBlockX(), CubeWorld.MAX_Y, chunk.getMaxBlockZ()), chunk));
-        String id = structure.key().location().toString();
+        String id = structure.key().identifier().toString();
         source.sendSuccess(() -> Component.translatable("commands.place.structure.success", id, pos.getX(), pos.getY(), pos.getZ()), true);
         result.setReturnValue(1);
     }
@@ -101,7 +101,7 @@ abstract class CubicPlaceCommandMixin {
         boolean loaded = CubeWorld.inRange(pos.getY()) && cubes.isLoaded(pos);
         for (int cy = bottom; cy <= top && !loaded; cy++) loaded = cubes.cubeAtBlock(pos.getX(), cy << 4, pos.getZ()) != null;
         if (!loaded) throw BlockPosArgument.ERROR_NOT_LOADED.create();
-        for (int cz = from.z; cz <= to.z; cz++) for (int cx = from.x; cx <= to.x; cx++)
+        for (int cz = from.z(); cz <= to.z(); cz++) for (int cx = from.x(); cx <= to.x(); cx++)
             for (int cy = bottom; cy <= top; cy++) cubes.loadNow(cx, cy, cz);
     }
 }

@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.At;
 abstract class CubicTeleportMixin {
     private static final int REACH = 384;
 
-    @WrapOperation(method = "randomTeleport", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinBuildHeight()I"))
+    @WrapOperation(method = "randomTeleport", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getMinY()I"))
     private int earthplatform$cubicBottom(Level level, Operation<Integer> original, @Local(argsOnly = true, ordinal = 1) double y) {
         return CubicLevel.of(level) != null ? Math.max(CubeWorld.MIN_Y, (int) Math.floor(y) - REACH) : original.call(level);
     }

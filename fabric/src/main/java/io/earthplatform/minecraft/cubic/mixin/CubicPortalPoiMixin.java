@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(ServerLevel.class)
 abstract class CubicPortalPoiMixin {
-    @Inject(method = "onBlockStateChange", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "updatePOIOnBlockStateChange", at = @At("HEAD"), cancellable = true)
     private void earthplatform$cubicPortal(BlockPos pos, BlockState old, BlockState now, CallbackInfo info) {
         ServerLevel self = (ServerLevel) (Object) this;
         if (CubicLevel.of(self) == null || !(old.is(Blocks.NETHER_PORTAL) || now.is(Blocks.NETHER_PORTAL))) return;

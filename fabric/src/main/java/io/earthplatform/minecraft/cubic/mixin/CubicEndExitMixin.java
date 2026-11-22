@@ -7,7 +7,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.EndPortalBlock;
-import net.minecraft.world.level.portal.DimensionTransition;
+import net.minecraft.world.level.portal.TeleportTransition;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,7 +21,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(EndPortalBlock.class)
 abstract class CubicEndExitMixin {
     @Inject(method = "getPortalDestination", at = @At("RETURN"), cancellable = true)
-    private void earthplatform$homeToCubic(ServerLevel level, Entity entity, BlockPos pos, CallbackInfoReturnable<DimensionTransition> result) {
+    private void earthplatform$homeToCubic(ServerLevel level, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTransition> result) {
         if (level.dimension() != Level.END || !(entity instanceof ServerPlayer player) || result.getReturnValue() == null) return;
         result.setReturnValue(CubicTravel.home(player, result.getReturnValue()));
     }

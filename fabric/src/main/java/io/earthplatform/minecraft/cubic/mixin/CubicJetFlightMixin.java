@@ -20,8 +20,8 @@ abstract class CubicJetFlightMixin {
     @Inject(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", at = @At("HEAD"), cancellable = true)
     private void earthplatform$jet(Vec3 input, CallbackInfo info) {
         LivingEntity self = (LivingEntity) (Object) this;
-        if (!JetStream.riding(self) || !self.isControlledByLocalInstance()) { earthplatform$track.reset(); return; }
-        boolean server = !self.level().isClientSide;
+        if (!JetStream.riding(self) || !self.isLocalInstanceAuthoritative()) { earthplatform$track.reset(); return; }
+        boolean server = !self.level().isClientSide();
         if (server) earthplatform$track.at(self.level().getGameTime(), self.getX(), self.getZ());
         self.setDeltaMovement(JetStream.carry(self.getDeltaMovement(), self.getLookAngle(), self.getY()));
         self.move(MoverType.SELF, self.getDeltaMovement());

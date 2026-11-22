@@ -9,6 +9,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -22,7 +23,9 @@ import org.lwjgl.glfw.GLFW;
  * is the server's /earth goto. Outside creative the same key opens the survival map.
  */
 public final class EarthFlight {
-    public static final KeyMapping KEY = new KeyMapping("key.earthplatform.map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_N, "key.categories.earthplatform");
+    /** The controls screen's Earth Platform section, which the postcard key shares. */
+    public static final KeyMapping.Category KEYS = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("earthplatform", "keys"));
+    public static final KeyMapping KEY = new KeyMapping("key.earthplatform.map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_N, KEYS);
 
     /** How high the camera climbs above the player's eyes before the globe takes over, in blocks. */
     static final double HEIGHT = 4500;
@@ -53,8 +56,8 @@ public final class EarthFlight {
         startYaw = player.getYRot();
         startPitch = player.getXRot();
         Minecraft minecraft = Minecraft.getInstance();
-        hidGui = !minecraft.options.hideGui;
-        minecraft.options.hideGui = true;
+        hidGui = !minecraft.gui.hud.isHidden();
+        if (hidGui) minecraft.gui.hud.toggle();
     }
 
     // Starting and ending ---------------------------------------------------------------------------
@@ -70,11 +73,11 @@ public final class EarthFlight {
         minecraft.execute(() -> {
             switch (payload.kind()) {
                 case EarthMap.OPEN -> {
-                    if (current == null && minecraft.player != null && minecraft.screen == null)
-                        minecraft.setScreen(EarthGlobeScreen.travel(payload.latitude(), payload.longitude()));
+                    if (current == null && minecraft.player != null && minecraft.gui.screen() == null)
+                        minecraft.gui.setScreen(EarthGlobeScreen.travel(payload.latitude(), payload.longitude()));
                 }
                 case EarthMap.PICK_SPAWN, EarthMap.PICK_START, EarthMap.PICK_GUESS -> {
-                    if (current == null && minecraft.player != null && minecraft.screen == null) {
+                    if (current == null && minecraft.player != null && minecraft.gui.screen() == null) {
                         String keys = switch (payload.kind()) {
                             case EarthMap.PICK_SPAWN -> "spawn";
                             case EarthMap.PICK_START -> "start";
@@ -85,14 +88,14 @@ public final class EarthFlight {
                             case EarthMap.PICK_START -> "earth start %.6f %.6f";
                             default -> "earth guess %.6f %.6f";
                         };
-                        minecraft.setScreen(EarthGlobeScreen.pick("earthplatform.map." + keys,
+                        minecraft.gui.setScreen(EarthGlobeScreen.pick("earthplatform.map." + keys,
                                 payload.latitude(), payload.longitude(),
                                 (lat, lon) -> minecraft.player.connection.sendCommand(String.format(Locale.ROOT, command, lat, lon))));
                     }
                 }
                 case EarthMap.LOOK -> {
-                    if (current == null && minecraft.player != null && minecraft.screen == null)
-                        minecraft.setScreen(EarthGlobeScreen.look(payload.latitude(), payload.longitude()));
+                    if (current == null && minecraft.player != null && minecraft.gui.screen() == null)
+                        minecraft.gui.setScreen(EarthGlobeScreen.look(payload.latitude(), payload.longitude()));
                 }
                 case EarthMap.HIDE_COMPASS, EarthMap.SHOW_COMPASS -> EarthCompassHud.round(payload.kind() == EarthMap.HIDE_COMPASS);
                 case EarthMap.ARRIVED -> { if (current != null && current.landedAt < 0) current.landedAt = clock(); }
@@ -110,7 +113,7 @@ public final class EarthFlight {
         player.connection.sendCommand(String.format(Locale.ROOT, "earth goto %.6f %.6f", toLat, toLon));
         if (current != null) current.end();
         current = new EarthFlight(player, fromLat, fromLon, toLat, toLon);
-        minecraft.setScreen(EarthGlobeScreen.flight(current));
+        minecraft.gui.setScreen(EarthGlobeScreen.flight(current));
     }
 
     /** Comes straight down where the player is now, as when the trip failed or the player pressed Escape. */
@@ -123,14 +126,14 @@ public final class EarthFlight {
     void end() {
         closed();
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.screen instanceof EarthGlobeScreen screen && screen.flying() == this) minecraft.setScreen(null);
+        if (minecraft.gui.screen() instanceof EarthGlobeScreen screen && screen.flying() == this) minecraft.gui.setScreen(null);
     }
 
     /** Its screen has gone, by the flight's end or because something else took the screen over. */
     void closed() {
         if (current != this) return;
         current = null;
-        if (hidGui) Minecraft.getInstance().options.hideGui = false;
+        if (hidGui && Minecraft.getInstance().gui.hud.isHidden()) Minecraft.getInstance().gui.hud.toggle();
     }
 
     /** Moves the flight on: called each frame by its screen. */
@@ -218,11 +221,11 @@ public final class EarthFlight {
         Minecraft minecraft = Minecraft.getInstance();
         while (KEY.consumeClick()) {
             LocalPlayer player = minecraft.player;
-            if (player == null || minecraft.screen != null || current != null) continue;
+            if (player == null || minecraft.gui.screen() != null || current != null) continue;
             // The server opens the travel map or the survival map, whichever this player gets; with neither it sends no such command.
             var earth = player.connection.getCommands().getRoot().getChild("earth");
             if (earth == null || earth.getChild("map") == null) {
-                player.displayClientMessage(Component.translatable("earthplatform.map.creativeOnly"), true);
+                player.sendOverlayMessage(Component.translatable("earthplatform.map.creativeOnly"));
                 continue;
             }
             player.connection.sendCommand("earth map");

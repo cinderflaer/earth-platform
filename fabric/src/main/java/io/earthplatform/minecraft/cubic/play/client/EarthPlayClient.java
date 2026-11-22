@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import io.earthplatform.minecraft.cubic.client.ClientCubeWorld;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
@@ -42,10 +42,10 @@ public final class EarthPlayClient {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.execute(() -> {
             if (payload.phase() == EarthStatus.PREPARING) {
-                if (minecraft.screen instanceof EarthArrivalScreen waiting) waiting.update(payload);
-                else if (minecraft.player != null) minecraft.setScreen(new EarthArrivalScreen(payload));
-            } else if (minecraft.screen instanceof EarthArrivalScreen) {
-                minecraft.setScreen(null);
+                if (minecraft.gui.screen() instanceof EarthArrivalScreen waiting) waiting.update(payload);
+                else if (minecraft.player != null) minecraft.gui.setScreen(new EarthArrivalScreen(payload));
+            } else if (minecraft.gui.screen() instanceof EarthArrivalScreen) {
+                minecraft.gui.setScreen(null);
             }
         });
     }
@@ -76,9 +76,8 @@ public final class EarthPlayClient {
                     || !(text.getKey().equals("fml.menu.mods") || text.getKey().equals("modmenu.title"))) continue;
             int full = mods.getWidth(), half = (full - 4) / 2;
             mods.setWidth(half);
-            add.accept(CycleButton.<EarthConfig.Sharpness>builder(EarthConfig.Sharpness::getTranslatedName)
+            add.accept(CycleButton.<EarthConfig.Sharpness>builder(EarthConfig.Sharpness::getTranslatedName, EarthConfig.FAR_SHARPNESS.get())
                     .withValues(EarthConfig.Sharpness.values())
-                    .withInitialValue(EarthConfig.FAR_SHARPNESS.get())
                     .withTooltip(value -> Tooltip.create(Component.translatable("earthplatform.pause.sharpness.tooltip")))
                     .create(mods.getX() + full - half, mods.getY(), half, mods.getHeight(),
                             Component.translatable("earthplatform.pause.sharpness"), (button, value) -> EarthConfig.setSharpness(value)));
@@ -108,24 +107,24 @@ public final class EarthPlayClient {
     }
 
     /** A quiet note while Earth data downloads, and a clear one when it can't be reached. */
-    public static void hud(GuiGraphics graphics) {
+    public static void hud(GuiGraphicsExtractor graphics) {
         Minecraft minecraft = Minecraft.getInstance();
         EarthStatus.Payload now = status;
-        if (now == null || now.phase() != EarthStatus.PLAYING || minecraft.options.hideGui || !EarthConfig.SHOW_DOWNLOADS.get()) return;
+        if (now == null || now.phase() != EarthStatus.PLAYING || minecraft.gui.hud.isHidden() || !EarthConfig.SHOW_DOWNLOADS.get()) return;
         if (Util.getMillis() - statusAt > 12_000) return;
-        GuiGraphics gui = graphics;
+        GuiGraphicsExtractor gui = graphics;
         var font = minecraft.font;
         if (now.problem() == EarthStatus.UNREACHABLE) {
             Component line = Component.translatable("earthplatform.status.unreachable");
             Component hint = Component.translatable("earthplatform.status.unreachable.hint");
             int width = Math.max(font.width(line), font.width(hint)) + 12, x = (gui.guiWidth() - width) / 2;
             gui.fill(x, 4, x + width, 30, 0xA0000000);
-            gui.drawCenteredString(font, line, gui.guiWidth() / 2, 8, 0xFFFFCC55);
-            gui.drawCenteredString(font, hint, gui.guiWidth() / 2, 19, 0xFFCCCCCC);
+            gui.centeredText(font, line, gui.guiWidth() / 2, 8, 0xFFFFCC55);
+            gui.centeredText(font, hint, gui.guiWidth() / 2, 19, 0xFFCCCCCC);
         } else if (now.downloading() > 0 || now.recent() > 0) {
             Component line = Component.translatable("earthplatform.status.downloading", ".".repeat((int) (Util.getMillis() / 400 % 4)));
             // Top left: toasts take the top right, and the debug screen hides this anyway.
-            if (!minecraft.getDebugOverlay().showDebugScreen()) gui.drawString(font, line, 6, 6, 0xFFBBBBBB);
+            if (!minecraft.getDebugOverlay().showDebugScreen()) gui.text(font, line, 6, 6, 0xFFBBBBBB);
         }
     }
 }

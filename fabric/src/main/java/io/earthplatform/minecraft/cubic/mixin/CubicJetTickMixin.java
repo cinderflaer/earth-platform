@@ -21,9 +21,8 @@ import org.spongepowered.asm.mixin.injection.At;
  */
 @Mixin(ServerLevel.class)
 abstract class CubicJetTickMixin {
-    // The entity tick lambda: NeoForge keeps its source name, Fabric's named jar its intermediary one.
-    @WrapOperation(method = {"lambda$tick$2(Lnet/minecraft/world/TickRateManager;Lnet/minecraft/util/profiling/ProfilerFiller;Lnet/minecraft/world/entity/Entity;)V",
-            "method_31420(Lnet/minecraft/world/TickRateManager;Lnet/minecraft/util/profiling/ProfilerFiller;Lnet/minecraft/world/entity/Entity;)V"},
+    // The entity tick lambda (Mojang's names at run time since 26.1).
+    @WrapOperation(method = "lambda$tick$0(Lnet/minecraft/world/TickRateManager;Lnet/minecraft/util/profiling/ProfilerFiller;Lnet/minecraft/world/entity/Entity;)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/DistanceManager;inEntityTickingRange(J)Z"))
     private boolean earthplatform$tickJetRiders(DistanceManager manager, long chunk, Operation<Boolean> original,
                                                 TickRateManager rates, ProfilerFiller profiler, Entity entity) {

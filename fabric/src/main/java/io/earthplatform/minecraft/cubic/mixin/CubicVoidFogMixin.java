@@ -18,9 +18,9 @@ import org.spongepowered.asm.mixin.injection.At;
  */
 @Mixin(value = FogRenderer.class, priority = 500)
 abstract class CubicVoidFogMixin {
-    @ModifyExpressionValue(method = "setupColor", require = 0,
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientLevel;getMinBuildHeight()I"))
-    private static int earthplatform$cubicBottom(int floor, @Local(argsOnly = true) ClientLevel level) {
+    @ModifyExpressionValue(method = "computeFogColor", require = 0,
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientLevel;getMinY()I"))
+    private int earthplatform$cubicBottom(int floor, @Local(argsOnly = true) ClientLevel level) {
         return CubicLevel.of(level) != null ? CubeWorld.MIN_Y : floor;
     }
 }

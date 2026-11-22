@@ -51,10 +51,10 @@ public final class EarthCompassHud {
         if (player == null || JetHud.showing()) return;
         Component line = line(player);
         if (line == null) return;
-        GuiOverlayAccess overlay = (GuiOverlayAccess) minecraft.gui;
+        GuiOverlayAccess overlay = (GuiOverlayAccess) minecraft.gui.hud;
         // A message from someone else, such as the server, keeps the action bar until its time is up.
         if (overlay.earthplatform$overlayTime() > 0 && overlay.earthplatform$overlay() != shown) return;
-        minecraft.gui.setOverlayMessage(line, false);
+        minecraft.gui.hud.setOverlayMessage(line, false);
         shown = line;
     }
 
@@ -70,8 +70,8 @@ public final class EarthCompassHud {
         Component name;
         CompoundTag target = EarthCompass.target(compass);
         if (target != null) {
-            to = new GeoPoint(target.getDouble("lat"), target.getDouble("lon"));
-            name = Component.literal(EarthCompass.label(target.getString("name"), to.latitude(), to.longitude()));
+            to = new GeoPoint(target.getDoubleOr("lat", 0), target.getDoubleOr("lon", 0));
+            name = Component.literal(EarthCompass.label(target.getStringOr("name", ""), to.latitude(), to.longitude()));
         } else {
             BlockPos pos = position(player, compass);
             if (pos == null) return null;
@@ -90,7 +90,7 @@ public final class EarthCompassHud {
                 .map(GlobalPos::pos).orElse(null);
         LodestoneTracker tracker = compass.get(DataComponents.LODESTONE_TRACKER);
         if (tracker != null) return tracker.target().filter(pos -> pos.dimension() == player.level().dimension()).map(GlobalPos::pos).orElse(null);
-        return player.clientLevel.getSharedSpawnPos();
+        return player.level().getRespawnData().pos();
     }
 
     /** The compass of any kind in the main hand, else the other hand. */
@@ -114,12 +114,12 @@ public final class EarthCompassHud {
         ItemStack inHand = held(player);
         if (inHand != null) {
             CompoundTag target = EarthCompass.target(inHand);
-            return target == null ? null : new GeoPoint(target.getDouble("lat"), target.getDouble("lon"));
+            return target == null ? null : new GeoPoint(target.getDoubleOr("lat", 0), target.getDoubleOr("lon", 0));
         }
         var inventory = player.getInventory();
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             CompoundTag target = inventory.getItem(slot).is(Items.COMPASS) ? EarthCompass.target(inventory.getItem(slot)) : null;
-            if (target != null) return new GeoPoint(target.getDouble("lat"), target.getDouble("lon"));
+            if (target != null) return new GeoPoint(target.getDoubleOr("lat", 0), target.getDoubleOr("lon", 0));
         }
         return null;
     }

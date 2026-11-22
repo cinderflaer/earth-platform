@@ -94,7 +94,7 @@ public final class SodiumOptions implements ConfigEntryPoint {
         var allSettings = builder.createExternalButtonOption(id("all_settings"))
                 .setName(Component.translatable("earthplatform.sodium.allSettings"))
                 .setTooltip(Component.translatable("earthplatform.sodium.allSettings.tooltip"))
-                .setScreenConsumer(parent -> Minecraft.getInstance().setScreen(
+                .setScreenConsumer(parent -> Minecraft.getInstance().gui.setScreen(
                         io.earthplatform.minecraft.platform.ClientPlatform.INSTANCE.configScreen(parent)));
 
         builder.registerOwnModOptions()
