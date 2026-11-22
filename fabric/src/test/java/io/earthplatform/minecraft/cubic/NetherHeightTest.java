@@ -44,4 +44,12 @@ class NetherHeightTest {
         assertEquals(EarthGenerator.SEA + 20, NetherHeight.toEarthY(34, 10), 1e-9);
         assertEquals(34, NetherHeight.toNetherY(EarthGenerator.SEA + 20, 10), 1e-9);
     }
+
+    @Test void tallMappingReachesDeepAndHighNetherHeights() {
+        double deep = NetherHeight.toTallNetherY(-10000, F), high = NetherHeight.toTallNetherY(10000, F);
+        assertTrue(deep < -1000 && high > 1000);
+        assertEquals(NetherHeight.TALL_MIN_Y, NetherHeight.toTallNetherY(-1e9, F), 1e-9);
+        assertEquals(NetherHeight.TALL_MAX_Y, NetherHeight.toTallNetherY(1e9, F), 1e-9);
+        for (double y = -1500; y <= 1500; y += 37) assertEquals(y, NetherHeight.toTallNetherY(up(y), F), 1e-6);
+    }
 }

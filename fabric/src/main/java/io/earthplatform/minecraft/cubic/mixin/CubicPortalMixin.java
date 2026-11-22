@@ -28,10 +28,12 @@ abstract class CubicPortalMixin {
 
     @Inject(method = "getPortalDestination", at = @At("HEAD"), cancellable = true)
     private void earthplatform$toCubic(ServerLevel level, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTransition> result) {
-        if (level.dimension() == Level.NETHER) {
+        if (level.dimension() == Level.NETHER || Cubic.isNether(level.dimension())) {
             TeleportTransition transition = CubicPortals.fromNether(level, entity, pos);
             if (transition != null) result.setReturnValue(transition);
-        } else if (Cubic.isCubic(level.dimension())) {
+        } else if (Cubic.isEarth(level.dimension())) {
+            TeleportTransition tall = CubicPortals.toCubicNether(level, entity, pos);
+            if (tall != null) { result.setReturnValue(tall); return; }
             // Vanilla scales X and Z by 1/8 but passes Y through, which is a surface height up to 16384 here.
             ServerLevel nether = level.getServer().getLevel(Level.NETHER);
             if (nether == null) return;

@@ -11,6 +11,6 @@ public final class CreateSkyCompat {
     private CreateSkyCompat() {}
 
     public static int cloudOffset(Level level) {
-        return level != null && Cubic.isCubic(level.dimension()) ? CLOUD_OFFSET : 0;
+        return level != null && Cubic.isEarth(level.dimension()) ? CLOUD_OFFSET : 0;
     }
 }

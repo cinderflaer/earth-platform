@@ -20,6 +20,7 @@ public final class CubicTravel {
 
     public static void changedDimension(ServerPlayer player, ResourceKey<Level> from, ResourceKey<Level> to) {
         if (to == Level.OVERWORLD) player.removeTag(CubicPortals.HOME_TAG);
+        else if (Cubic.isCubic(to) && Cubic.isCubic(from)) player.addTag(CubicPortals.HOME_TAG);
         else if (Cubic.isCubic(to) || Cubic.isCubic(from)) player.addTag(CubicPortals.HOME_TAG);
     }
 

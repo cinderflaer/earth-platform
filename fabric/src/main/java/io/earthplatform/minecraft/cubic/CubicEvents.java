@@ -35,7 +35,10 @@ public final class CubicEvents {
     public static void load(LevelAccessor levelAccessor) {
         if (!(levelAccessor instanceof ServerLevel level) || !Cubic.isCubic(level.dimension())) return;
         var folder = DimensionType.getStorageFolder(level.dimension(), level.getServer().getWorldPath(LevelResource.ROOT));
-        CubeGenerator generator = CubicSettings.open(folder, level.getSeed(), level.registryAccess().lookupOrThrow(Registries.BIOME));
+        var biomes = level.registryAccess().lookupOrThrow(Registries.BIOME);
+        CubeGenerator generator = Cubic.isNether(level.dimension())
+                ? new io.earthplatform.minecraft.cubic.gen.NetherGenerator(level.getSeed(), biomes)
+                : CubicSettings.open(folder, level.getSeed(), biomes);
         ((CubicLevel) level).earthplatform$setCubes(new ServerCubeWorld(level, generator));
         // Fetch the data around the arrival point now, so the first visit does not wait on it.
         int[] home = generator.arrival();

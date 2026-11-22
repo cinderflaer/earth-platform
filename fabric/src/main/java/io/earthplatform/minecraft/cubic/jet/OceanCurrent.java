@@ -170,7 +170,7 @@ public final class OceanCurrent {
      * logs back in aboard comes in before its rider, so one that changed when the rider got in was never sent at all.
      */
     public static boolean keepsTicking(AbstractBoat boat) {
-        return Cubic.isCubic(boat.level().dimension());
+        return Cubic.isEarth(boat.level().dimension());
     }
 
     /** The current's speed in blocks a tick at a latitude, heading a share {@code east} of the way east (west when negative). */

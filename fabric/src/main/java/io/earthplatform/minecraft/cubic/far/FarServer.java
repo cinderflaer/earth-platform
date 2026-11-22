@@ -433,7 +433,7 @@ public final class FarServer {
 
     /** Queues the columns a player asked for; ones outside that player's squares are ignored, but for a zoomed view's few. */
     public void request(ServerPlayer player, long[] keys) {
-        if (closed) return;
+        if (closed || !generator.farTerrain()) return;
         UUID id = player.getUUID();
         Session session = session(player);
         int bx = player.getBlockX(), bz = player.getBlockZ();

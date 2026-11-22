@@ -44,7 +44,7 @@ public final class SableWind {
     private SableWind() {}
 
     public static void tick(LevelAccessor levelAccessor) {
-        if (!SableCompat.LOADED || broken || !(levelAccessor instanceof ServerLevel level) || !Cubic.isCubic(level.dimension())) return;
+        if (!SableCompat.LOADED || broken || !(levelAccessor instanceof ServerLevel level) || !Cubic.isEarth(level.dimension())) return;
         if (!tried && !lookUp()) return;
         try {
             Object ships = container.invoke(level);

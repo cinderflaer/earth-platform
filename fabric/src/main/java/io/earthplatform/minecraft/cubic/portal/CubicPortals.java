@@ -98,6 +98,76 @@ public final class CubicPortals {
         return level != null && CubicLevel.of(level) instanceof ServerCubeWorld ? level : null;
     }
 
+    /** The cubic Nether level, when this server has it running. */
+    @Nullable public static ServerLevel cubicNether(ServerLevel any) {
+        ServerLevel level = any.getServer().getLevel(Cubic.NETHER);
+        return level != null && CubicLevel.of(level) instanceof ServerCubeWorld ? level : null;
+    }
+
+    /** How far from the mapped point a portal is sought in the cubic Nether, vanilla's 16 plus the height's share. */
+    private static final int NETHER_SEARCH = 32;
+
+    /**
+     * Where a portal in the cubic Earth leads: the cubic Nether, at the height mapped by
+     * {@link NetherHeight#toTallNetherY}. Null when the server has no cubic Nether (vanilla's Nether then serves).
+     */
+    @Nullable public static net.minecraft.world.level.portal.TeleportTransition toCubicNether(ServerLevel earth, Entity entity, BlockPos portal) {
+        ServerLevel nether = cubicNether(earth);
+        if (nether == null || !(CubicLevel.of(nether) instanceof ServerCubeWorld cubes)) return null;
+        double scale = DimensionType.getTeleportationScale(earth.dimensionType(), nether.dimensionType());
+        BlockPos target = nether.getWorldBorder().clampToBounds(entity.getX() * scale, NetherHeight.toTallNetherY(entity.getY(), Y_FACTOR), entity.getZ() * scale);
+        Registry registry = Registry.of(nether);
+        BlockPos found = nearest(cubes, registry, target, NETHER_SEARCH);
+        BlockUtil.FoundRectangle exit;
+        if (found != null) {
+            BlockState state = cubes.getBlockState(found);
+            exit = BlockUtil.getLargestRectangleAround(found, state.getValue(NetherPortalBlock.AXIS), 21, Direction.Axis.Y, 21,
+                    pos -> cubes.getBlockState(pos) == state);
+        } else {
+            Direction.Axis axis = earth.getBlockState(portal).getOptionalValue(NetherPortalBlock.AXIS).orElse(Direction.Axis.X);
+            exit = buildInNether(nether, cubes, target.getX(), target.getY(), target.getZ(), axis);
+        }
+        return NetherPortalAccess.earthplatform$exit(entity, portal, exit, nether,
+                net.minecraft.world.level.portal.TeleportTransition.PLAY_PORTAL_SOUND);
+    }
+
+    /**
+     * Builds a portal in the cubic Nether near a point: on the nearest floor with room for the frame, found
+     * up and down the caverns, else on an obsidian platform at the point, clearing the space round it.
+     */
+    private static BlockUtil.FoundRectangle buildInNether(ServerLevel level, ServerCubeWorld cubes, int x, int y, int z, Direction.Axis axis) {
+        for (int dz = -2; dz <= 2; dz++) for (int dx = -2; dx <= 2; dx++) for (int dy = -4; dy <= 4; dy++) {
+            cubes.loadNow((x >> 4) + dx, (y >> 4) + dy, (z >> 4) + dz);
+        }
+        Direction along = axis == Direction.Axis.X ? Direction.EAST : Direction.SOUTH;
+        Direction across = along.getClockWise();
+        BlockPos spot = null;
+        for (int radius = 0; radius <= BUILD_SEARCH && spot == null; radius++) {
+            for (int dz = -radius; dz <= radius && spot == null; dz++) for (int dx = -radius; dx <= radius && spot == null; dx++) {
+                if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
+                for (int i = 0; i <= 48 && spot == null; i++) {
+                    int dy = (i + 1) / 2 * (i % 2 == 1 ? 1 : -1);
+                    BlockPos base = new BlockPos(x + dx, y + dy, z + dz);
+                    if (fits(cubes, base, along, across)) spot = base;
+                }
+            }
+        }
+        if (spot == null) {
+            spot = new BlockPos(x, y, z);
+            for (int i = -1; i <= 2; i++) for (int j = -1; j <= 1; j++) {
+                BlockPos column = spot.relative(along, i).relative(across, j);
+                level.setBlock(column.below(), Blocks.OBSIDIAN.defaultBlockState(), 3);
+                for (int k = 0; k < 4; k++) level.setBlock(column.above(k), Blocks.AIR.defaultBlockState(), 3);
+            }
+        }
+        for (int i = -1; i <= 2; i++) for (int k = -1; k <= 3; k++) {
+            if (i == -1 || i == 2 || k == -1 || k == 3) level.setBlock(spot.relative(along, i).above(k), Blocks.OBSIDIAN.defaultBlockState(), 3);
+        }
+        BlockState portal = Blocks.NETHER_PORTAL.defaultBlockState().setValue(NetherPortalBlock.AXIS, axis);
+        for (int i = 0; i <= 1; i++) for (int k = 0; k <= 2; k++) level.setBlock(spot.relative(along, i).above(k), portal, 18);
+        return new BlockUtil.FoundRectangle(spot, 2, 3);
+    }
+
     /**
      * Where a Nether portal leads an entity standing in it, when that is the cubic world: always
      * for players who live there, and for anything else when the portal was built from it.
@@ -110,7 +180,7 @@ public final class CubicPortals {
         Registry registry = Registry.of(cubic);
         BlockPos found = nearest(cubes, registry, target, SEARCH);
         if (found == null) found = nearest(cubes, registry, target, LINK_SEARCH);
-        boolean home = entity instanceof ServerPlayer player && player.entityTags().contains(HOME_TAG);
+        boolean home = Cubic.isNether(nether.dimension()) || entity instanceof ServerPlayer player && player.entityTags().contains(HOME_TAG);
         if (found == null && !home) return null;
 
         BlockUtil.FoundRectangle exit;

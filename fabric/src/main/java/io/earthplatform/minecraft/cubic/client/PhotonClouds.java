@@ -32,7 +32,7 @@ final class PhotonClouds {
 
     private static boolean wanted() {
         var level = Minecraft.getInstance().level;
-        return level != null && Cubic.isCubic(level.dimension()) && EarthConfig.CLOUD_HEIGHT.get() > 0;
+        return level != null && Cubic.isEarth(level.dimension()) && EarthConfig.CLOUD_HEIGHT.get() > 0;
     }
 
     /** Iris's option changes for a pack it is about to load, with the Earth's clouds added in the Earth. */
