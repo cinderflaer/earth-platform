@@ -45,7 +45,7 @@ public final class PortalReturn {
 
     /** Call when an entity uses a portal in {@code level}; remembers it if that is the Earth world. */
     public static boolean rememberIfEarth(String key, ServerLevel level, Entity entity, BlockPos portal) {
-        if (!Cubic.isCubic(level.dimension())) return false;
+        if (!Cubic.isEarth(level.dimension())) return false;
         Platform.INSTANCE.persistentData(entity).store(key, BlockPos.CODEC, portal);
         return true;
     }

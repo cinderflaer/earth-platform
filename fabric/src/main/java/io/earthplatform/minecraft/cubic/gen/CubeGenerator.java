@@ -88,6 +88,9 @@ public interface CubeGenerator {
      */
     default void farColumnCompact(int level, int columnX, int columnZ, FarColumn out) { farColumn(level, columnX, columnZ, out); }
 
+    /** Whether this world has far terrain to draw beyond its cubes; a closed cave world has none. */
+    default boolean farTerrain() { return true; }
+
     /** Top block of the sea: players arrive on ground above it. */
     int seaLevel();
     /** Ground too cold or high for a new arrival to start on. */

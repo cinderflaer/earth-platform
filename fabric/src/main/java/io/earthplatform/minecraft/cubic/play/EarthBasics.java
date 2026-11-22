@@ -35,7 +35,7 @@ public final class EarthBasics {
 
     /** Sleeping in the Earth moves the shared clock and clears the shared weather, as sleeping in the overworld does. */
     public static void sleptThrough(net.minecraft.world.level.LevelAccessor sleptIn, long newTime) {
-        if (!(sleptIn instanceof ServerLevel level) || !Cubic.isCubic(level.dimension())) return;
+        if (!(sleptIn instanceof ServerLevel level) || !Cubic.isEarth(level.dimension())) return;
         ServerLevel overworld = level.getServer().overworld();
         if (level.getGameRules().get(GameRules.ADVANCE_TIME)) overworld.dimensionType().defaultClock().ifPresent(clock -> overworld.clockManager().setTotalTicks(clock, newTime));
         if (level.getGameRules().get(GameRules.ADVANCE_WEATHER) && overworld.isRaining()) overworld.resetWeatherCycle();

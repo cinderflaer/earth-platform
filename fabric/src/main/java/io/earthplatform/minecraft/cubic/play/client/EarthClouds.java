@@ -117,7 +117,7 @@ public final class EarthClouds {
 
     /** True for the cubic dimension, whose sky follows real heights. */
     public static boolean earthSky(Object level) {
-        return level instanceof ClientLevel client && Cubic.isCubic(client.dimension());
+        return level instanceof ClientLevel client && Cubic.isEarth(client.dimension());
     }
 
     /** Whether the layered clouds are on, with a cloud height to draw them at (see {@link CloudVolume}). */
@@ -140,7 +140,7 @@ public final class EarthClouds {
 
     /** Draws the Earth's clouds instead of vanilla's; false leaves the frame to vanilla. */
     public static boolean render(ClientLevel level, Matrix4f view, Matrix4f projection, float partialTick, double camX, double camY, double camZ) {
-        if (level == null || !Cubic.isCubic(level.dimension())) return false;
+        if (level == null || !Cubic.isEarth(level.dimension())) return false;
         int height = EarthConfig.CLOUD_HEIGHT.get();
         if (height <= 0) return false;
         if (IRIS && net.irisshaders.iris.Iris.isPackInUseQuick()) return false;
