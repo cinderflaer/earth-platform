@@ -29,6 +29,7 @@
     "CubicPlaceCommandMixin",
     "CubicJigsawPlaceMixin",
     "CubicFloatingKickMixin",
+    "CubicWaitingShieldMixin",
     "CubicFallSpeedMixin",
     "compat.ComputerCraftTurtleMoveMixin",
     "compat.ComputerCraftModemRangeMixin",
