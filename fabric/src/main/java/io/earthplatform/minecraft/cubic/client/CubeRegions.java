@@ -1,24 +1,24 @@
 package io.earthplatform.minecraft.cubic.client;
 
-import com.mojang.blaze3d.opengl.GlStateManager;
-import com.mojang.blaze3d.opengl.Uniform;
+import com.mojang.blaze3d.IndexType;
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormatElement;
 import io.earthplatform.minecraft.cubic.CubeKey;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import net.minecraft.world.phys.Vec3;
 import org.lwjgl.PointerBuffer;
-import org.lwjgl.opengl.GL11C;
-import org.lwjgl.opengl.GL15C;
-import org.lwjgl.opengl.GL32C;
 import org.lwjgl.system.MemoryUtil;
 
 /**
@@ -28,14 +28,15 @@ import org.lwjgl.system.MemoryUtil;
  *
  * <p>A region's layer holds its cubes' meshes in a few buffers of fixed size, each mesh a run of vertices (and, for the
  * sorted translucent layer, of indices) given out by {@link CubeRanges}. A buffer never grows and no mesh ever moves: a
- * full region gets another buffer. That keeps to calls every OpenGL 3.2 has, a Mac's among them (which silently lacks
- * copying between buffers). The vertices are placed in the region, not the cube ({@link #shift}), so one chunk offset,
- * the region's, serves every cube in it, and {@code glMultiDrawElementsBaseVertex} draws those in view.
+ * full region gets another buffer. The vertices are placed in the region, not the cube ({@link #shift}), so one chunk
+ * section uniform, the region's, serves every cube in it, and a multi-draw with base vertices draws those in view.
  *
  * <p>The same triangles in the same order as cube by cube, except that the opaque layers go region by region (nearest
  * first), each region's cubes nearest first; translucent ones keep their exact order back to front, drawn in runs of
  * cubes that share a buffer. {@code -Dearthplatform.cubes.regions=false} gives every cube its own buffer as before,
  * for comparing.
+ *
+ * <p>Since 26.2 the buffers are Blaze3D buffers and every draw goes through the game's render pass for the layer.
  */
 final class CubeRegions {
     static final boolean ON = !"false".equals(System.getProperty("earthplatform.cubes.regions"));
@@ -54,22 +55,28 @@ final class CubeRegions {
             this.arena = arena; this.firstVertex = firstVertex; this.vertexCount = vertexCount;
             this.firstIndex = firstIndex; this.indexCount = indexCount;
         }
+
+        /** The region the mesh lies in, as a {@link CubeKey} of region coordinates ({@link #originX} and so on). */
+        long region() { return arena.region.key; }
+
+        /** Indices the draw needs from the shared quad indices, 0 when its buffer has sorted ones of its own. */
+        int quadIndices() { return arena.sorted ? 0 : indexCount; }
     }
+
+    /** The block a region's vertices are placed from. */
+    static int originX(long region) { return CubeKey.x(region) << SHIFT + 4; }
+    static int originY(long region) { return CubeKey.y(region) << SHIFT + 4; }
+    static int originZ(long region) { return CubeKey.z(region) << SHIFT + 4; }
 
     private static final class Region {
         final long key;
-        /** Blocks. */
-        final int x, y, z;
         @SuppressWarnings("unchecked") final List<Arena>[] layers = new List[CubeMesher.LAYERS.size()];
         int arenas;
 
-        Region(long key) {
-            this.key = key;
-            x = CubeKey.x(key) << SHIFT + 4; y = CubeKey.y(key) << SHIFT + 4; z = CubeKey.z(key) << SHIFT + 4;
-        }
+        Region(long key) { this.key = key; }
     }
 
-    /** One buffer of a region's layer: a vertex array, its vertices and, where meshes bring sorted indices, those. */
+    /** One buffer of a region's layer: its vertices and, where meshes bring sorted indices, those. */
     private static final class Arena {
         final Region region;
         final int layer;
@@ -77,7 +84,7 @@ final class CubeRegions {
         final boolean sorted;
         final CubeRanges vertexSpace;
         @Nullable final CubeRanges indexSpace;
-        int array, vertices, indices;
+        @Nullable GpuBuffer vertices, indices;
         int live;
         /** Draws waiting: index count, base vertex and first index, three ints each. */
         int[] queue = new int[48];
@@ -88,24 +95,20 @@ final class CubeRegions {
             vertexSpace = new CubeRanges(capacity);
             // Quads: six indices to four vertices.
             indexSpace = sorted ? new CubeRanges(capacity / 4 * 6) : null;
-            array = GlStateManager._glGenVertexArrays();
-            vertices = GlStateManager._glGenBuffers();
-            GlStateManager._glBindVertexArray(array);
-            GlStateManager._glBindBuffer(GL15C.GL_ARRAY_BUFFER, vertices);
-            GL15C.glBufferData(GL15C.GL_ARRAY_BUFFER, (long) capacity * format.getVertexSize(), GL15C.GL_DYNAMIC_DRAW);
-            format.setupBufferState();
+            vertices = RenderSystem.getDevice().createBuffer(() -> "Earth cube region vertices",
+                    GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_COPY_DST, (long) capacity * format.getVertexSize());
             if (sorted) {
-                indices = GlStateManager._glGenBuffers();
-                GlStateManager._glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, indices);
-                GL15C.glBufferData(GL15C.GL_ELEMENT_ARRAY_BUFFER, (long) indexSpace.capacity() * Integer.BYTES, GL15C.GL_DYNAMIC_DRAW);
+                indices = RenderSystem.getDevice().createBuffer(() -> "Earth cube region indices",
+                        GpuBuffer.USAGE_INDEX | GpuBuffer.USAGE_COPY_DST, (long) indexSpace.capacity() * Integer.BYTES);
             }
         }
 
+        boolean open() { return vertices != null; }
+
         void close() {
-            RenderSystem.glDeleteBuffers(vertices);
-            if (indices != 0) RenderSystem.glDeleteBuffers(indices);
-            RenderSystem.glDeleteVertexArrays(array);
-            array = vertices = indices = 0;
+            if (vertices != null) vertices.close();
+            if (indices != null) indices.close();
+            vertices = indices = null;
         }
     }
 
@@ -132,7 +135,7 @@ final class CubeRegions {
         MeshData.DrawState state = mesh.drawState();
         ByteBuffer data = mesh.vertexBuffer();
         int stride = state.format().getVertexSize();
-        long at = MemoryUtil.memAddress(data) + state.format().getOffset(VertexFormatElement.POSITION);
+        long at = MemoryUtil.memAddress(data) + state.format().getElement(DefaultVertexFormat.POSITION_SEMANTIC_NAME).offset();
         for (int i = 0, count = state.vertexCount(); i < count; i++, at += stride) {
             MemoryUtil.memPutFloat(at, MemoryUtil.memGetFloat(at) + dx);
             MemoryUtil.memPutFloat(at + 4, MemoryUtil.memGetFloat(at + 4) + dy);
@@ -140,45 +143,40 @@ final class CubeRegions {
         }
     }
 
-    /** Uploads a cube's mesh for a layer (and closes it); null when it holds nothing. Leaves no vertex array bound. */
+    /** Uploads a cube's mesh for a layer (and closes it); null when it holds nothing. Never while a render pass is open. */
     @Nullable Slice upload(long cube, int layer, MeshData mesh) {
         try (mesh) {
             RenderSystem.assertOnRenderThread();
             MeshData.DrawState state = mesh.drawState();
-            if (state.mode() != VertexFormat.Mode.QUADS) throw new IllegalArgumentException("Cube buffers hold quads, not " + state.mode());
+            if (state.primitiveTopology() != PrimitiveTopology.QUADS) throw new IllegalArgumentException("Cube buffers hold quads, not " + state.primitiveTopology());
             ByteBuffer vertexData = mesh.vertexBuffer(), own = mesh.indexBuffer();
             int vertexCount = state.vertexCount(), indexCount = state.indexCount();
             if (vertexCount == 0 || indexCount == 0) return null;
             long key = CubeKey.pack(CubeKey.x(cube) >> SHIFT, CubeKey.y(cube) >> SHIFT, CubeKey.z(cube) >> SHIFT);
             Region region = regions.get(key);
             if (region == null) regions.put(key, region = new Region(key));
-            BufferUploader.invalidate();
             Slice slice = place(region, layer, state.format(), own != null, vertexCount, indexCount);
             Arena arena = slice.arena;
-            GlStateManager._glBindVertexArray(arena.array);
-            GlStateManager._glBindBuffer(GL15C.GL_ARRAY_BUFFER, arena.vertices);
-            GL15C.glBufferSubData(GL15C.GL_ARRAY_BUFFER, (long) slice.firstVertex * arena.format.getVertexSize(), vertexData);
+            CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+            long vertexSize = arena.format.getVertexSize();
+            encoder.writeToBuffer(arena.vertices.slice(slice.firstVertex * vertexSize, (long) vertexData.remaining()), vertexData);
             if (own != null) {
-                GlStateManager._glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, arena.indices);
                 long offset = (long) slice.firstIndex * Integer.BYTES;
-                if (state.indexType() == VertexFormat.IndexType.INT) {
-                    GL15C.glBufferSubData(GL15C.GL_ELEMENT_ARRAY_BUFFER, offset, own);
+                if (state.indexType() == IndexType.INT) {
+                    encoder.writeToBuffer(arena.indices.slice(offset, (long) own.remaining()), own);
                 } else {
                     // Every mesh's indices as ints, so a run of meshes draws in one call.
-                    IntBuffer wide = MemoryUtil.memAllocInt(indexCount);
+                    ByteBuffer wide = MemoryUtil.memAlloc(indexCount * Integer.BYTES);
                     try {
+                        IntBuffer ints = wide.asIntBuffer();
                         long from = MemoryUtil.memAddress(own);
-                        for (int i = 0; i < indexCount; i++) wide.put(i, MemoryUtil.memGetShort(from + i * 2L) & 0xFFFF);
-                        GL15C.glBufferSubData(GL15C.GL_ELEMENT_ARRAY_BUFFER, offset, wide);
+                        for (int i = 0; i < indexCount; i++) ints.put(i, MemoryUtil.memGetShort(from + i * 2L) & 0xFFFF);
+                        encoder.writeToBuffer(arena.indices.slice(offset, (long) indexCount * Integer.BYTES), wide);
                     } finally {
                         MemoryUtil.memFree(wide);
                     }
                 }
-            } else {
-                CubeBuffer.QuadIndices.ensure(indexCount);
             }
-            GlStateManager._glBindVertexArray(0);
-            BufferUploader.invalidate();
             return slice;
         }
     }
@@ -232,7 +230,7 @@ final class CubeRegions {
         if (slice == null || slice.freed) return;
         slice.freed = true;
         Arena arena = slice.arena;
-        if (arena.array == 0) return;
+        if (!arena.open()) return;
         usedBytes -= size(slice);
         arena.vertexSpace.give(slice.firstVertex, slice.vertexCount);
         if (arena.indexSpace != null) arena.indexSpace.give(slice.firstIndex, slice.indexCount);
@@ -245,7 +243,7 @@ final class CubeRegions {
      */
     void sweep() {
         for (Arena arena : idle) {
-            if (arena.live != 0 || arena.array == 0) continue;
+            if (arena.live != 0 || !arena.open()) continue;
             Region region = arena.region;
             region.layers[arena.layer].remove(arena);
             bytes -= size(arena);
@@ -264,24 +262,30 @@ final class CubeRegions {
 
     // Drawing ------------------------------------------------------------------------------------
 
-    @Nullable private Uniform offset;
-    private Vec3 camera = Vec3.ZERO;
+    @Nullable private RenderPass pass;
+    @Nullable private Long2ObjectMap<GpuBufferSlice> sections;
+    @Nullable private GpuBuffer quads;
+    private IndexType quadType = IndexType.INT;
     private boolean ordered;
     /** Buffers with draws waiting, in the order first drawn from; in order, only ever the last one. */
     private final List<Arena> waiting = new ArrayList<>();
-    /** The region the chunk offset is set for. */
+    /** The region the chunk section uniform is set for. */
     @Nullable private Region placed;
     private int calls;
     @Nullable private IntBuffer counts, bases;
     @Nullable private PointerBuffer offsets;
 
     /**
-     * Starts drawing a layer with the shader bound, whose chunk offset is {@code offset}. {@code ordered} keeps the
-     * meshes in exactly the order given, as translucent ones need; otherwise they are drawn buffer by buffer.
+     * Starts drawing a layer in a render pass with its pipeline, default uniforms and textures set. {@code sections}
+     * holds each region's chunk section uniform by its key ({@link Slice#region}); {@code quads} are the game's shared
+     * quad indices, long enough for every slice drawn ({@link Slice#quadIndices}). {@code ordered} keeps the meshes in
+     * exactly the order given, as translucent ones need; otherwise they are drawn buffer by buffer.
      */
-    void begin(@Nullable Uniform offset, Vec3 camera, boolean ordered) {
-        this.offset = offset;
-        this.camera = camera;
+    void begin(RenderPass pass, Long2ObjectMap<GpuBufferSlice> sections, GpuBuffer quads, IndexType quadType, boolean ordered) {
+        this.pass = pass;
+        this.sections = sections;
+        this.quads = quads;
+        this.quadType = quadType;
         this.ordered = ordered;
         placed = null;
     }
@@ -289,7 +293,7 @@ final class CubeRegions {
     /** Draws a mesh, now or with others from its buffer by {@link #end} at the latest. */
     void draw(Slice slice) {
         Arena arena = slice.arena;
-        if (arena.array == 0 || slice.freed) return;
+        if (!arena.open() || slice.freed) return;
         if (arena.queued == 0) {
             if (ordered) flush();
             waiting.add(arena);
@@ -305,39 +309,41 @@ final class CubeRegions {
     /** Draws a mesh at once on condition of an occlusion query (see {@link CubeOcclusion}). */
     void drawOnCondition(Slice slice, int query) {
         Arena arena = slice.arena;
-        if (arena.array == 0 || slice.freed) return;
+        if (!arena.open() || slice.freed) return;
         if (ordered) flush();
         bind(arena);
         CubeOcclusion.beginConditional(query);
-        GL32C.glDrawElementsBaseVertex(GL11C.GL_TRIANGLES, slice.indexCount, GL11C.GL_UNSIGNED_INT, (long) slice.firstIndex * Integer.BYTES, slice.firstVertex);
+        pass.drawIndexed(slice.firstVertex, slice.firstIndex, slice.indexCount, 1, 0);
         CubeOcclusion.endConditional();
         calls++;
     }
 
     private void bind(Arena arena) {
         Region region = arena.region;
-        if (offset != null && region != placed) {
-            offset.set((float) (region.x - camera.x), (float) (region.y - camera.y), (float) (region.z - camera.z));
-            offset.upload();
+        if (region != placed) {
+            pass.setUniform("ChunkSection", sections.get(region.key));
             placed = region;
         }
-        GlStateManager._glBindVertexArray(arena.array);
-        // Bound again into the array before drawing, as CubeBuffer does, so nothing outside changes the indices used.
-        GlStateManager._glBindBuffer(GL15C.GL_ELEMENT_ARRAY_BUFFER, arena.sorted ? arena.indices : CubeBuffer.QuadIndices.name);
+        pass.setVertexBuffer(0, arena.vertices.slice());
+        // Sorted indices are ints ({@link #upload}); a mesh's first index is 0 in the shared quad indices.
+        if (arena.sorted) pass.setIndexBuffer(arena.indices, IndexType.INT);
+        else pass.setIndexBuffer(quads, quadType);
     }
 
     private void flush() {
+        boolean multi = RenderSystem.getDevice().getDeviceInfo().features().multiDrawDirectSeparate();
         for (Arena arena : waiting) {
             int count = arena.queued;
             arena.queued = 0;
-            if (count == 0 || arena.array == 0) continue;
+            if (count == 0 || !arena.open()) continue;
             bind(arena);
             int[] queue = arena.queue;
             calls++;
-            if (count == 1) {
-                GL32C.glDrawElementsBaseVertex(GL11C.GL_TRIANGLES, queue[0], GL11C.GL_UNSIGNED_INT, (long) queue[2] * Integer.BYTES, queue[1]);
+            if (count == 1 || !multi) {
+                for (int i = 0; i < count; i++) pass.drawIndexed(queue[i * 3 + 1], queue[i * 3 + 2], queue[i * 3], 1, 0);
                 continue;
             }
+            int indexBytes = arena.sorted ? Integer.BYTES : quadType.bytes;
             if (counts == null || counts.capacity() < count) {
                 int size = Math.max(256, Integer.highestOneBit(count - 1) << 1);
                 MemoryUtil.memFree(counts);
@@ -350,12 +356,12 @@ final class CubeRegions {
             for (int i = 0; i < count; i++) {
                 counts.put(i, queue[i * 3]);
                 bases.put(i, queue[i * 3 + 1]);
-                offsets.put(i, (long) queue[i * 3 + 2] * Integer.BYTES);
+                offsets.put(i, (long) queue[i * 3 + 2] * indexBytes);
             }
             counts.limit(count);
             bases.limit(count);
             offsets.limit(count);
-            GL32C.glMultiDrawElementsBaseVertex(GL11C.GL_TRIANGLES, counts, GL11C.GL_UNSIGNED_INT, offsets, bases);
+            pass.multiDrawIndexed(offsets, counts, bases, count);
             counts.limit(counts.capacity());
             bases.limit(bases.capacity());
             offsets.limit(offsets.capacity());
@@ -363,10 +369,12 @@ final class CubeRegions {
         waiting.clear();
     }
 
-    /** Draws what waits. The caller puts the chunk offset back and unbinds the vertex array. */
+    /** Draws what waits; the caller closes the render pass. */
     void end() {
         flush();
-        offset = null;
+        pass = null;
+        sections = null;
+        quads = null;
         placed = null;
     }
 

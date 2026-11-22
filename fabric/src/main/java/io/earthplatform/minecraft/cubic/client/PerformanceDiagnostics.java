@@ -49,11 +49,11 @@ public final class PerformanceDiagnostics {
         void emit(Minecraft mc) {
             JsonObject record=base("window");record.addProperty("commit",BuildInfo.commit());record.addProperty("version",BuildInfo.version());long now=System.nanoTime();record.addProperty("window_seconds",(now-windowStart)/1e9);windowStart=now;record.add("frames",gson.toJsonTree(frames.take()));
             JsonObject settings=new JsonObject();
-            settings.addProperty("framebuffer_width",mc.getMainRenderTarget().width);settings.addProperty("framebuffer_height",mc.getMainRenderTarget().height);
+            settings.addProperty("framebuffer_width",mc.gameRenderer.mainRenderTarget().width);settings.addProperty("framebuffer_height",mc.gameRenderer.mainRenderTarget().height);
             settings.addProperty("render_chunks",mc.options.renderDistance().get());settings.addProperty("simulation_chunks",mc.options.simulationDistance().get());
             settings.addProperty("fps_limit",mc.options.framerateLimit().get());settings.addProperty("vsync",mc.options.enableVsync().get());
             settings.addProperty("shader_pack_active",ShaderBlocks.packInUse());settings.addProperty("own_far_depth",FarLod.active());
-            settings.addProperty("integrated_server",mc.getSingleplayerServer()!=null);settings.addProperty("screen_open",mc.screen!=null);
+            settings.addProperty("integrated_server",mc.getSingleplayerServer()!=null);settings.addProperty("screen_open",mc.gui.screen()!=null);
             settings.addProperty("automatic_run_mesher",FarMesher.automaticRuns());record.add("settings",settings);
             Runtime r=Runtime.getRuntime();record.addProperty("heap_used_mib",(r.totalMemory()-r.freeMemory())>>20);record.addProperty("heap_committed_mib",r.totalMemory()>>20);
             ClientCubeWorld world=ClientCubeWorld.current();record.addProperty("cubic_world_loaded",world!=null);

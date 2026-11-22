@@ -6,7 +6,7 @@ import io.earthplatform.minecraft.cubic.CubicLevel;
 import io.earthplatform.minecraft.cubic.Timings;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -116,8 +116,8 @@ public final class CubicClient {
         PhotonCloudsHook.tick();
         if (world != null && Timings.LOG && ++perfTicks % PERF_TICKS == 0) {
             Runtime runtime = Runtime.getRuntime();
-            var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-            int[] byView = world.renderer().meshesByView(camera.getPosition(), camera.getYRot());
+            var camera = Minecraft.getInstance().gameRenderer.mainCamera();
+            int[] byView = world.renderer().meshesByView(camera.position(), camera.yRot());
             EarthPlatformMod.LOGGER.info("cubic perf: {} fps, heap {} MB, {} cubes, {} meshes ({} in view, {} drawn, {} behind rock, {} tested hidden, {} in shadow map, {} draw calls, {} shared buffers {} MB, {} MB used), {} to compile, far {}/{} columns {}% settled ({}% in view) {} MB {} draws ({} of them only where queries pass), {} sent again, {}; {}",
                     Minecraft.getInstance().getFps(), (runtime.totalMemory() - runtime.freeMemory()) >> 20, world.loadedCubes(),
                     world.renderer().meshCount(), byView[0], world.renderer().visibleMeshCount(), world.renderer().caveCulledCount(), world.renderer().occlusionTestedCount(), world.renderer().shadowDrawnCount(), world.renderer().drawCallCount(), world.renderer().regionBufferCount(), world.renderer().regionBufferMegabytes(), world.renderer().regionUsedMegabytes(), world.renderer().pendingCount(), world.far().drawnCount(), world.far().columnCount(),
@@ -165,11 +165,20 @@ public final class CubicClient {
             renderer.drawOpaque(camera, frustum, modelView, projection);
             world.far().draw(camera, frustum, modelView, projection);
         } else if (stage == Stage.AFTER_BLOCK_ENTITIES) {
-            renderer.drawBlockEntities(camera, frustum, pose, partialTick);
+            // Since 26.2 block entities are drawn by the game from the render states extractBlockEntities adds.
         } else if (stage == Stage.AFTER_TRANSLUCENT_BLOCKS || stage == Stage.AFTER_PARTICLES) {
             world.far().drawWater(camera, modelView, projection);
             renderer.drawTranslucent(camera, frustum, modelView, projection);
         }
+    }
+
+    /**
+     * Adds the render states of the cubes' block entities in view (chests, signs, beds...) to the level's, where the
+     * game extracts its own block entities for the frame; it then draws them with its own.
+     */
+    public static void extractBlockEntities(Frustum frustum, float partialTick, java.util.List<? super net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState> into) {
+        ClientCubeWorld world = ClientCubeWorld.current();
+        if (world != null) world.renderer().extractBlockEntities(frustum, partialTick, into);
     }
 
     private static long timingsAt;
@@ -210,7 +219,7 @@ public final class CubicClient {
         if (ClientCubeWorld.current() == null || camera.getFluidInCamera() != FogType.WATER) return 1.0F;
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) return 1.0F;
-        double depth = level.getSeaLevel() - camera.getPosition().y;
+        double depth = level.getSeaLevel() - camera.position().y;
         if (depth <= LIT_DEPTH) return 1.0F;
         return (float) Math.max(DARKEST, Math.exp(-(depth - LIT_DEPTH) / FADE_DEPTH));
     }
@@ -221,11 +230,11 @@ public final class CubicClient {
      */
     @javax.annotation.Nullable
     public static float[] fog(FogRenderer.FogMode mode, FogType type, Camera view, float farPlaneDistance) {
-        if (ClientCubeWorld.current() == null || mode != FogRenderer.FogMode.FOG_TERRAIN || type != FogType.NONE) return null;
-        if (farPlaneDistance < Minecraft.getInstance().gameRenderer.getRenderDistance() - 1.0F) return null;
+        if (ClientCubeWorld.current() == null || mode != FogRenderer.FogMode.WORLD || type != FogType.NONE) return null;
+        if (farPlaneDistance < Minecraft.getInstance().options.getEffectiveRenderDistance() * 16.0F - 1.0F) return null;
         // High up, the ground below is as far away as the horizon is at ground level: start the fog
         // beyond it, so terrain under a player in the jet stream is clear rather than a pale haze.
-        var camera = view.getPosition();
+        var camera = view.position();
         ClientCubeWorld world = ClientCubeWorld.current();
         float height = (float) camera.y - world.skyTop(net.minecraft.util.Mth.floor(camera.x), net.minecraft.util.Mth.floor(camera.z));
         float scale = FarRenderer.hazeAtEdge() ? 1.0F : world.far().hazeScale(camera.z), end = FarRenderer.fogEnd() * scale;
@@ -233,7 +242,7 @@ public final class CubicClient {
         return new float[] {start, end};
     }
 
-    public static void waiting(GuiGraphics graphics) {
+    public static void waiting(GuiGraphicsExtractor graphics) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientCubeWorld world = ClientCubeWorld.current();
         if (world == null || minecraft.player == null) return;
@@ -243,6 +252,6 @@ public final class CubicClient {
         if (!waitingForCubes(world, player)) return;
         var gui = graphics;
         Component text = Component.literal("Loading terrain at Y " + player.getBlockY() + "...");
-        gui.drawCenteredString(minecraft.font, text, gui.guiWidth() / 2, gui.guiHeight() / 2 - 20, 0xFFFFFF);
+        gui.centeredText(minecraft.font, text, gui.guiWidth() / 2, gui.guiHeight() / 2 - 20, 0xFFFFFFFF);
     }
 }

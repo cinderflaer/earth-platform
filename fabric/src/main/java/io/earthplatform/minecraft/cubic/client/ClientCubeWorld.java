@@ -33,7 +33,7 @@ public final class ClientCubeWorld extends CubeWorld {
     public ClientCubeWorld(ClientLevel level) {
         super(level);
         this.client = level;
-        this.biomes = level.registryAccess().registryOrThrow(Registries.BIOME);
+        this.biomes = level.registryAccess().lookupOrThrow(Registries.BIOME);
         this.renderer = new CubeRenderer(this);
         this.far = new FarRenderer(this);
     }
@@ -75,7 +75,7 @@ public final class ClientCubeWorld extends CubeWorld {
         Cube cube = new Cube(payload.x(), payload.y(), payload.z(), CubeCodec.readSection(payload.section(), biomes));
         adopt(cube);
         for (CompoundTag tag : payload.blockEntities()) {
-            BlockEntity entity = getBlockEntity(new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z")), true);
+            BlockEntity entity = getBlockEntity(new BlockPos(tag.getIntOr("x", 0), tag.getIntOr("y", 0), tag.getIntOr("z", 0)), true);
             if (entity != null) Platform.INSTANCE.handleUpdateTag(entity, tag, client.registryAccess());
         }
         renderer.cubeArrived(cube.key);

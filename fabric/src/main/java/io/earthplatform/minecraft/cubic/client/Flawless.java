@@ -50,7 +50,7 @@ public final class Flawless {
     static int clock() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return 1;
-        double ticks = minecraft.level.getGameTime() + minecraft.getTimer().getGameTimeDeltaPartialTick(true);
+        double ticks = minecraft.level.getGameTime() + minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         int now = (int) (ticks * 5) & 0x7FFFFFF;
         return now == 0 ? 1 : now;
     }
