@@ -490,7 +490,9 @@ public final class FarServer {
                 // Closing the world interrupts columns still being made: nothing failed, so nothing to retry or report.
                 if (closed) return;
                 // Missing data is asked for again a few seconds on, not at once: with a data server down it fails at once again.
-                if (failure instanceof MissingTerrainException) missing.add(key);
+                // Beyond the map nothing is missing: the Farlands make those columns, so asking again would never end.
+                if (failure instanceof io.earthplatform.geography.OutsideMapException) { /* left queued: never retried */ }
+                else if (failure instanceof MissingTerrainException) missing.add(key);
                 else failed.add(key);
                 failures.incrementAndGet();
                 PerfFailures.record(PerfFailures.Stage.FAR_GENERATION,failure);
