@@ -355,10 +355,10 @@ final class Trees {
         var steps = biome.value().getGenerationSettings().features();
         int step = GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
         if (steps.size() > step) for (Holder<PlacedFeature> placed : steps.get(step)) {
-            String namespace = placed.unwrapKey().map(k -> k.location().getNamespace()).orElse("");
+            String namespace = placed.unwrapKey().map(k -> k.identifier().getNamespace()).orElse("");
             if (namespace.equals("minecraft") || namespace.equals(EarthPlatformMod.MOD_ID)) continue;
             ConfiguredFeature<?, ?> feature = placed.value().feature().value();
-            if (feature.getFeatures().noneMatch(Trees::treeLike)) continue;
+            if (allFeatures(feature).noneMatch(Trees::treeLike)) continue;
             Added tree = added(placed.value());
             if (tree != null && tree.perChunk > 0 && shapes(tree.feature, tree.soil).length > 0) found.add(tree);
         }
@@ -367,6 +367,11 @@ final class Trees {
         Additions made = found.isEmpty() ? NO_ADDITIONS : new Additions(found.toArray(Added[]::new), total, own(biome).isPresent());
         Additions raced = additions.putIfAbsent(biome, made);
         return raced != null ? raced : made;
+    }
+
+    /** A feature and every feature nested inside it. */
+    private static java.util.stream.Stream<ConfiguredFeature<?, ?>> allFeatures(ConfiguredFeature<?, ?> feature) {
+        return java.util.stream.Stream.concat(java.util.stream.Stream.of(feature), feature.getSubFeatures().flatMap(h -> allFeatures(h.value())));
     }
 
     /** A tree feature, a huge mushroom, or a mod's own kind of feature, which might be a tree. */
@@ -416,7 +421,7 @@ final class Trees {
     }
 
     private static float mean(JsonElement count, RandomSource random) {
-        IntProvider provider = IntProvider.CODEC.parse(JsonOps.INSTANCE, count).getOrThrow();
+        IntProvider provider = net.minecraft.util.valueproviders.IntProviders.CODEC.parse(JsonOps.INSTANCE, count).getOrThrow();
         long sum = 0;
         for (int i = 0; i < 256; i++) sum += provider.sample(random);
         return sum / 256f;
@@ -461,7 +466,7 @@ final class Trees {
         var steps = biome.value().getGenerationSettings().features();
         int step = GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
         if (steps.size() > step) for (Holder<PlacedFeature> placed : steps.get(step)) {
-            Tree family = placed.unwrapKey().map(k -> FAMILY.get(k.location().getPath())).orElse(null);
+            Tree family = placed.unwrapKey().map(k -> FAMILY.get(k.identifier().getPath())).orElse(null);
             if (family != null) { found = Optional.of(new Own(family, pick(placed.value().feature()))); break; }
         }
         owns.putIfAbsent(biome, found);
@@ -472,7 +477,7 @@ final class Trees {
     private Pick home(Tree family) {
         if (family == Tree.AZALEA) {
             for (Holder<PlacedFeature> placed : vegetation(Biomes.LUSH_CAVES))
-                if (placed.value().feature().value().config() instanceof RootSystemConfiguration roots) return pick(roots.treeFeature.value().feature());
+                if (placed.value().feature().value().config() instanceof RootSystemConfiguration roots) return pick(roots.treeFeature().value().feature());
         }
         ResourceKey<Biome> home = HOME.getOrDefault(family, Biomes.PLAINS);
         for (Holder<Biome> biome : gen.biomeIds) {
@@ -501,13 +506,13 @@ final class Trees {
     private static Pick pick(Holder<ConfiguredFeature<?, ?>> feature) {
         FeatureConfiguration config = feature.value().config();
         if (config instanceof RandomFeatureConfiguration selector) {
-            float[] chances = new float[selector.features.size()];
+            float[] chances = new float[selector.features().size()];
             ConfiguredFeature<?, ?>[] trees = new ConfiguredFeature<?, ?>[chances.length];
             for (int i = 0; i < chances.length; i++) {
-                chances[i] = selector.features.get(i).chance;
-                trees[i] = tree(selector.features.get(i).feature.value().feature());
+                chances[i] = selector.features().get(i).chance();
+                trees[i] = tree(selector.features().get(i).feature().value().feature());
             }
-            return new Pick(chances, trees, tree(selector.defaultFeature.value().feature()));
+            return new Pick(chances, trees, tree(selector.defaultFeature().value().feature()));
         }
         if (config instanceof RandomBooleanFeatureConfiguration either)
             return new Pick(new float[]{0.5f}, new ConfiguredFeature<?, ?>[]{tree(either.featureTrue.value().feature())}, tree(either.featureFalse.value().feature()));

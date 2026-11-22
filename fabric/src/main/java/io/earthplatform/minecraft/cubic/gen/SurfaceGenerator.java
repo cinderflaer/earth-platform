@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import net.minecraft.world.level.chunk.Strategy;
 import net.minecraft.world.level.levelgen.synth.SimplexNoise;
 
 /**
@@ -71,6 +72,8 @@ public abstract class SurfaceGenerator implements CubeGenerator {
 
     protected final long seed;
     protected final IdMap<Holder<Biome>> biomeIds;
+    private static final Strategy<BlockState> BLOCK_STRATEGY = Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY);
+    private final Strategy<Holder<Biome>> biomeStrategy;
     private final Registry<Biome> biomeRegistry;
     private final Underground below;
     /** Vanilla's structures, once a server level is attached; until then cubes are terrain only. */
@@ -85,6 +88,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     protected SurfaceGenerator(long seed, Registry<Biome> biomes, RandomSource random) {
         this.seed = seed;
         this.biomeIds = biomes.asHolderIdMap();
+        this.biomeStrategy = Strategy.createForBiomes(biomeIds);
         this.biomeRegistry = biomes;
         below = new Underground(this, seed, biomes, random);
     }
@@ -97,7 +101,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     public final void legacyCaves() { below.vanillaCaves(false); }
     /** Adds optional half-block steps to a world that pinned them before its first cube. */
     public final void enableTerrainSlabs() { terrainSlabs = TerrainSlabs.load(); }
-    protected static Holder<Biome> holder(Registry<Biome> registry, ResourceKey<Biome> key) { return registry.getHolderOrThrow(key); }
+    protected static Holder<Biome> holder(Registry<Biome> registry, ResourceKey<Biome> key) { return registry.getOrThrow(key); }
 
     /** Fractal noise: {@code octaves} layers of {@code noise}, each half as strong and 2.03x as fine, averaged by weight. */
     protected static double fbm(SimplexNoise noise, double x, double z, int octaves) {
@@ -454,7 +458,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
         LevelChunkSection[] stack = new LevelChunkSection[sections];
         for (int si = 0; si < sections; si++) {
             LevelChunkSection section = new LevelChunkSection(
-                    new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, AIR, PalettedContainer.Strategy.SECTION_STATES), farBiomes(biome));
+                    new PalettedContainer<>(AIR, BLOCK_STRATEGY), farBiomes(biome));
             int sectionY = (bottom + si) * width;
             for (int vy = 0; vy < 16; vy++) {
                 int y0 = sectionY + vy * v;
@@ -511,7 +515,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     }
 
     private PalettedContainer<Holder<Biome>> farBiomes(Holder<Biome>[] biome) {
-        PalettedContainer<Holder<Biome>> container = new PalettedContainer<>(biomeIds, biome[8 * 16 + 8], PalettedContainer.Strategy.SECTION_BIOMES);
+        PalettedContainer<Holder<Biome>> container = new PalettedContainer<>(biome[8 * 16 + 8], biomeStrategy);
         for (int qz = 0; qz < 4; qz++) for (int qx = 0; qx < 4; qx++) {
             Holder<Biome> b = biome[(qz * 4 + 1) * 16 + qx * 4 + 1];
             for (int qy = 0; qy < 4; qy++) container.set(qx, qy, qz, b);
@@ -607,10 +611,10 @@ public abstract class SurfaceGenerator implements CubeGenerator {
      */
     private static void dropStrayBlockEntities(LevelChunkSection section, int cx, int cy, int cz, List<CompoundTag> blockEntities) {
         blockEntities.removeIf(tag -> {
-            if (tag.getInt("x") >> 4 != cx || tag.getInt("y") >> 4 != cy || tag.getInt("z") >> 4 != cz) return false; // another cube's
-            Identifier id = Identifier.tryParse(tag.getString("id"));
-            BlockEntityType<?> type = id == null ? null : BuiltInRegistries.BLOCK_ENTITY_TYPE.get(id);
-            BlockState state = section.getBlockState(tag.getInt("x") & 15, tag.getInt("y") & 15, tag.getInt("z") & 15);
+            if (tag.getIntOr("x", 0) >> 4 != cx || tag.getIntOr("y", 0) >> 4 != cy || tag.getIntOr("z", 0) >> 4 != cz) return false; // another cube's
+            Identifier id = Identifier.tryParse(tag.getStringOr("id", ""));
+            BlockEntityType<?> type = id == null ? null : BuiltInRegistries.BLOCK_ENTITY_TYPE.getValue(id);
+            BlockState state = section.getBlockState(tag.getIntOr("x", 0) & 15, tag.getIntOr("y", 0) & 15, tag.getIntOr("z", 0) & 15);
             return type == null || !type.isValid(state);
         });
     }
@@ -716,7 +720,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
         @Override public int floor(int x, int z) { return below.floor(x, z); }
         @Override public int seaLevel() { return SurfaceGenerator.this.seaLevel() + 1; }
         @Override public java.util.stream.Stream<Holder<Biome>> possibleBiomes() {
-            return biomeRegistry.holders().filter(h -> h.is(BiomeTags.IS_OVERWORLD)).map(h -> (Holder<Biome>) h);
+            return biomeRegistry.listElements().filter(h -> h.is(BiomeTags.IS_OVERWORLD)).map(h -> (Holder<Biome>) h);
         }
         @Override public BlockState fill(int x, int y, int z, int depth) {
             Surface surface = column(x >> 4, z >> 4).surface[(z & 15) * 16 + (x & 15)];
@@ -749,8 +753,8 @@ public abstract class SurfaceGenerator implements CubeGenerator {
         }
         Holder<Biome> caveBiome = caves == null ? null : below.biome(caves);
         LevelChunkSection section = new LevelChunkSection(
-                new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, AIR, PalettedContainer.Strategy.SECTION_STATES),
-                caveBiome != null ? new PalettedContainer<>(biomeIds, caveBiome, PalettedContainer.Strategy.SECTION_BIOMES) : biomes(col, fallback));
+                new PalettedContainer<>(AIR, BLOCK_STRATEGY),
+                caveBiome != null ? new PalettedContainer<>(caveBiome, biomeStrategy) : biomes(col, fallback));
         // Empty sky cubes: nothing generated, not even trees, above the tallest possible tree.
         if (y0 > Math.max(col.max + vegetation.tallest(cx, cz), col.maxWater)) { section.recalcBlockCounts(); return section; }
         double[] caveField = y0 > col.max ? null : below.caveField(x0, y0, z0);
@@ -793,7 +797,7 @@ public abstract class SurfaceGenerator implements CubeGenerator {
     }
 
     private PalettedContainer<Holder<Biome>> biomes(Column col, Holder<Biome> fallback) {
-        PalettedContainer<Holder<Biome>> container = new PalettedContainer<>(biomeIds, fallback, PalettedContainer.Strategy.SECTION_BIOMES);
+        PalettedContainer<Holder<Biome>> container = new PalettedContainer<>(fallback, biomeStrategy);
         for (int qz = 0; qz < 4; qz++) for (int qx = 0; qx < 4; qx++) {
             Holder<Biome> b = col.surface[(qz * 4 + 1) * 16 + qx * 4 + 1].biome();
             for (int qy = 0; qy < 4; qy++) container.set(qx, qy, qz, b);

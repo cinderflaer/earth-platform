@@ -57,13 +57,13 @@ public final class ImageryCalibration {
     private static final Map<BlockState, Integer> GROUND_RGB = new HashMap<>();
     static {
         for (GroundPalette.Ground ground : GroundPalette.Ground.values())
-            GROUND_RGB.put(BuiltInRegistries.BLOCK.get(Identifier.withDefaultNamespace(ground.id())).defaultBlockState(), ground.rgb);
+            GROUND_RGB.put(BuiltInRegistries.BLOCK.getValue(Identifier.withDefaultNamespace(ground.id())).defaultBlockState(), ground.rgb);
     }
 
     private ImageryCalibration() {}
 
     public static void commands(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal("cubes").then(Commands.literal("calibrate").requires(source -> source.hasPermission(2))
+        dispatcher.register(Commands.literal("cubes").then(Commands.literal("calibrate").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .executes(context -> calibrate(context.getSource(), 2048))
                 .then(Commands.argument("size", IntegerArgumentType.integer(64, 65536))
                         .executes(context -> calibrate(context.getSource(), IntegerArgumentType.getInteger(context, "size"))))));
@@ -137,7 +137,7 @@ public final class ImageryCalibration {
             totalOff += off;
             if (with.top() != plain.top() || with.trees() != plain.trees()) changed++;
             String key = BuiltInRegistries.BLOCK.getKey(plain.top().getBlock()).getPath() + (plain.trees() > 0 ? " + trees" : "") + " in "
-                    + plain.biome().unwrapKey().map(k -> k.location().getPath()).orElse("?");
+                    + plain.biome().unwrapKey().map(k -> k.identifier().getPath()).orElse("?");
             Group group = groups.computeIfAbsent(key, Group::new);
             group.add(satellite, linear, plainRgb, off);
         }

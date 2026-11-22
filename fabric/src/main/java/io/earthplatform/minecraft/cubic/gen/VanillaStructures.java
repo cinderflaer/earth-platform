@@ -145,11 +145,11 @@ final class VanillaStructures {
         this.host = host;
         this.seed = seed;
         this.randomState = level.getChunkSource().randomState();
-        Registry<StructureSet> sets = level.registryAccess().registryOrThrow(Registries.STRUCTURE_SET);
-        this.state = ChunkGeneratorStructureState.createForFlat(randomState, seed, new FrameBiomes(0), sets.holders().map(h -> (Holder<StructureSet>) h));
+        Registry<StructureSet> sets = level.registryAccess().lookupOrThrow(Registries.STRUCTURE_SET);
+        this.state = ChunkGeneratorStructureState.createForFlat(randomState, seed, new FrameBiomes(0), sets.listElements().map(h -> (Holder<StructureSet>) h));
         List<Kind> found = new ArrayList<>();
         for (Holder<StructureSet> set : state.possibleStructureSets()) {
-            String id = set.unwrapKey().map(k -> k.location().toString()).orElse("");
+            String id = set.unwrapKey().map(k -> k.identifier().toString()).orElse("");
             StructurePlacement placement = set.value().placement();
             if (placement instanceof ConcentricRingsStructurePlacement)
                 placement = new RandomSpreadStructurePlacement(STRONGHOLD_SPACING, STRONGHOLD_SEPARATION, RandomSpreadType.TRIANGULAR, STRONGHOLD_SALT);
@@ -157,11 +157,11 @@ final class VanillaStructures {
                     deep(id, set.value()), FLOOR_RELATIVE.contains(id)));
         }
         this.kinds = List.copyOf(found);
-        long added = found.stream().filter(k -> !k.set.unwrapKey().map(key -> key.location().getNamespace().equals("minecraft")).orElse(false)).count();
+        long added = found.stream().filter(k -> !k.set.unwrapKey().map(key -> key.identifier().getNamespace().equals("minecraft")).orElse(false)).count();
         if (added > 0) LOGGER.info("Cubic world: {} structure sets from other mods, {} placed by their own rules, {} at vanilla depths",
                 added, found.stream().filter(k -> k.spread == null).count(), found.stream().filter(k -> k.deep && !DEEP.contains(k.set.getRegisteredName())).count());
         Map<Integer, Integer> counts = new HashMap<>();
-        for (Structure structure : level.registryAccess().registryOrThrow(Registries.STRUCTURE)) {
+        for (Structure structure : level.registryAccess().lookupOrThrow(Registries.STRUCTURE)) {
             int step = structure.step().ordinal();
             seeding.put(structure, new int[]{step, counts.merge(step, 1, Integer::sum) - 1});
         }
@@ -210,7 +210,7 @@ final class VanillaStructures {
                 // Whatever the terrain had at a written position is gone.
                 Set<Integer> written = new java.util.HashSet<>();
                 for (short at : patch.at) written.add((int) at);
-                blockEntities.removeIf(tag -> written.contains((tag.getInt("y") & 15) << 8 | (tag.getInt("z") & 15) << 4 | tag.getInt("x") & 15));
+                blockEntities.removeIf(tag -> written.contains((tag.getIntOr("y", 0) & 15) << 8 | (tag.getIntOr("z", 0) & 15) << 4 | tag.getIntOr("x", 0) & 15));
             }
             for (CompoundTag tag : patch.blockEntities) blockEntities.add(tag.copy());
             for (CompoundTag tag : patch.entities) entities.add(tag.copy());
@@ -240,8 +240,8 @@ final class VanillaStructures {
             for (int rz = Math.floorDiv(cz - radius, spacing); rz <= Math.floorDiv(cz + radius, spacing); rz++)
                 for (int rx = Math.floorDiv(cx - radius, spacing); rx <= Math.floorDiv(cx + radius, spacing); rx++) {
                     ChunkPos chunk = kind.spread.getPotentialStructureChunk(seed, rx * spacing, rz * spacing);
-                    long d = (long) (chunk.x - cx) * (chunk.x - cx) + (long) (chunk.z - cz) * (chunk.z - cz);
-                    if (d <= (long) radius * radius) candidates.add(new long[]{d, kind.index, chunk.x, chunk.z});
+                    long d = (long) (chunk.x() - cx) * (chunk.x() - cx) + (long) (chunk.z() - cz) * (chunk.z() - cz);
+                    if (d <= (long) radius * radius) candidates.add(new long[]{d, kind.index, chunk.x(), chunk.z()});
                 }
         }
         candidates.sort(java.util.Comparator.comparingLong(c -> c[0]));
@@ -352,7 +352,7 @@ final class VanillaStructures {
         Frame frame = new Frame(deep || relative ? host.floor(chunk.getMiddleBlockX(), chunk.getMiddleBlockZ()) - 64 : 0, deep);
         StructureStart made;
         synchronized (STARTS) {
-            made = structure.generate(level.registryAccess(), frame, frame.getBiomeSource(), randomState, level.getStructureManager(),
+            made = structure.generate(level.registryAccess().lookupOrThrow(Registries.STRUCTURE).wrapAsHolder(structure), level.dimension(), level.registryAccess(), frame, frame.getBiomeSource(), randomState, level.getStructureManager(),
                     seed, chunk, 0, frame.heights, biome -> true);
         }
         if (!made.isValid()) return null;
@@ -375,7 +375,7 @@ final class VanillaStructures {
             int blocks = 0, entities = 0;
             for (Patch patch : overlay.values()) { blocks += patch.at.length; entities += patch.entities.size(); }
             Patch here = overlay.get(cube);
-            text.append(level.registryAccess().registryOrThrow(Registries.STRUCTURE).getKey(start.start.getStructure()))
+            text.append(level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getKey(start.start.getStructure()))
                     .append(" box ").append(start.start.getBoundingBox().moved(0, start.frame.shift, 0))
                     .append(": ").append(blocks).append(" blocks, ").append(entities).append(" entities, ")
                     .append(here == null ? 0 : here.at.length).append(" here, by cube y in this column:");
@@ -412,7 +412,7 @@ final class VanillaStructures {
 
     /** The starts reaching a chunk column, in a fixed order. */
     private List<Start> column(int cx, int cz) {
-        long key = ChunkPos.asLong(cx, cz);
+        long key = ChunkPos.pack(cx, cz);
         List<Start> cached = columns.get(key);
         if (cached != null) return cached;
         List<Start> found = new ArrayList<>();
@@ -430,9 +430,9 @@ final class VanillaStructures {
             for (int rz = Math.floorDiv(cz - REACH, spacing); rz <= Math.floorDiv(cz + REACH, spacing); rz++)
                 for (int rx = Math.floorDiv(cx - REACH, spacing); rx <= Math.floorDiv(cx + REACH, spacing); rx++) {
                     ChunkPos chunk = kind.spread.getPotentialStructureChunk(seed, rx * spacing, rz * spacing);
-                    if (Math.abs(chunk.x - cx) > REACH || Math.abs(chunk.z - cz) > REACH) continue;
-                    if (!kind.placement.isStructureChunk(state, chunk.x, chunk.z)) continue;
-                    Start start = start(kind, chunk.x, chunk.z);
+                    if (Math.abs(chunk.x() - cx) > REACH || Math.abs(chunk.z() - cz) > REACH) continue;
+                    if (!kind.placement.isStructureChunk(state, chunk.x(), chunk.z())) continue;
+                    Start start = start(kind, chunk.x(), chunk.z());
                     if (start != null && start.reach.intersects(x0, z0, x0 + 15, z0 + 15)) found.add(start);
                 }
         }
@@ -528,7 +528,7 @@ final class VanillaStructures {
                 ? biome -> biome.is(BiomeTags.IS_OCEAN) : structure.biomes()::contains;
         // Vanilla lays starts out on one thread; some piece builders (strongholds) keep static state
         synchronized (STARTS) {
-            return structure.generate(level.registryAccess(), frame, frame.getBiomeSource(), randomState, level.getStructureManager(),
+            return structure.generate(entry.structure(), level.dimension(), level.registryAccess(), frame, frame.getBiomeSource(), randomState, level.getStructureManager(),
                     seed, chunk, 0, frame.heights, biomes);
         }
     }
@@ -548,7 +548,7 @@ final class VanillaStructures {
                     mine.complete(build(start));
                 } catch (RuntimeException | LinkageError e) {
                     LOGGER.warn("Cubic world: structure {} failed to place at chunk {}, {}",
-                            level.registryAccess().registryOrThrow(Registries.STRUCTURE).getKey(start.start.getStructure()), start.chunkX, start.chunkZ, e);
+                            level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getKey(start.start.getStructure()), start.chunkX, start.chunkZ, e);
                     mine.complete(new Long2ObjectOpenHashMap<>());
                 }
             }
@@ -593,11 +593,11 @@ final class VanillaStructures {
             states.computeIfAbsent(cube, k -> new ArrayList<>()).add(entry.getValue());
         }
         for (CompoundTag tag : world.blockEntityTags())
-            blockEntities.computeIfAbsent(SectionPos.asLong(tag.getInt("x") >> 4, tag.getInt("y") >> 4, tag.getInt("z") >> 4), k -> new ArrayList<>()).add(tag);
+            blockEntities.computeIfAbsent(SectionPos.asLong(tag.getIntOr("x", 0) >> 4, tag.getIntOr("y", 0) >> 4, tag.getIntOr("z", 0) >> 4), k -> new ArrayList<>()).add(tag);
         for (CompoundTag tag : world.entities) {
-            ListTag pos = tag.getList("Pos", Tag.TAG_DOUBLE);
+            ListTag pos = tag.getListOrEmpty("Pos");
             if (pos.size() != 3) continue;
-            int x = (int) Math.floor(pos.getDouble(0)), y = (int) Math.floor(pos.getDouble(1)), z = (int) Math.floor(pos.getDouble(2));
+            int x = (int) Math.floor(pos.getDoubleOr(0, 0)), y = (int) Math.floor(pos.getDoubleOr(1, 0)), z = (int) Math.floor(pos.getDoubleOr(2, 0));
             entities.computeIfAbsent(SectionPos.asLong(x >> 4, y >> 4, z >> 4), k -> new ArrayList<>()).add(tag);
         }
         Long2ObjectOpenHashMap<Patch> patches = new Long2ObjectOpenHashMap<>();
@@ -727,8 +727,8 @@ final class VanillaStructures {
         @Override public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor heights, RandomState random) {
             int ground = host.ground(x, z), water = host.water(x, z);
             // Down to the bottom of a shifted frame, so searches down a column find rock, not air; plain stone deep down.
-            int lo = shift != 0 ? heights.getMinBuildHeight() : Math.max(heights.getMinBuildHeight(), ground - 128);
-            int hi = Math.min(heights.getMaxBuildHeight(), Math.max(ground, water) - shift + 32);
+            int lo = shift != 0 ? heights.getMinY() : Math.max(heights.getMinY(), ground - 128);
+            int hi = Math.min((heights.getMaxY() + 1), Math.max(ground, water) - shift + 32);
             BlockState[] states = new BlockState[Math.max(0, hi - lo)];
             for (int i = 0; i < states.length; i++) {
                 int y = lo + i + shift;
@@ -741,7 +741,7 @@ final class VanillaStructures {
         @Override public int getMinY() { return minY; }
         @Override public int getGenDepth() { return height; }
         @Override protected MapCodec<? extends ChunkGenerator> codec() { throw new UnsupportedOperationException("cubic structure frame"); }
-        @Override public void applyCarvers(WorldGenRegion region, long seed, RandomState random, BiomeManager biomes, StructureManager structures, ChunkAccess chunk, GenerationStep.Carving step) {}
+        @Override public void applyCarvers(WorldGenRegion region, long seed, RandomState random, BiomeManager biomes, StructureManager structures, ChunkAccess chunk) {}
         @Override public void buildSurface(WorldGenRegion region, StructureManager structures, RandomState random, ChunkAccess chunk) {}
         @Override public void spawnOriginalMobs(WorldGenRegion region) {}
         @Override public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState random, StructureManager structures, ChunkAccess chunk) {

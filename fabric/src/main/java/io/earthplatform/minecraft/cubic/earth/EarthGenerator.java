@@ -92,13 +92,13 @@ public final class EarthGenerator extends SurfaceGenerator {
             ANDESITE = Blocks.ANDESITE.defaultBlockState(), RED_SAND = Blocks.RED_SAND.defaultBlockState(),
             TERRACOTTA = Blocks.TERRACOTTA.defaultBlockState(), RED_SANDSTONE = Blocks.RED_SANDSTONE.defaultBlockState(),
             CALCITE = Blocks.CALCITE.defaultBlockState(), POWDER_SNOW = Blocks.POWDER_SNOW.defaultBlockState(),
-            ORANGE_TERRACOTTA = Blocks.ORANGE_TERRACOTTA.defaultBlockState(), DIORITE = Blocks.DIORITE.defaultBlockState(),
+            ORANGE_TERRACOTTA = Blocks.DYED_TERRACOTTA.orange().defaultBlockState(), DIORITE = Blocks.DIORITE.defaultBlockState(),
             POOL = Blocks.WATER.defaultBlockState(), BASALT = Blocks.SMOOTH_BASALT.defaultBlockState(), BLACKSTONE = Blocks.BLACKSTONE.defaultBlockState(), TUFF = Blocks.TUFF.defaultBlockState(),
-            RED_TERRACOTTA = Blocks.RED_TERRACOTTA.defaultBlockState(), LIGHT_GRAY_TERRACOTTA = Blocks.LIGHT_GRAY_TERRACOTTA.defaultBlockState();
+            RED_TERRACOTTA = Blocks.DYED_TERRACOTTA.red().defaultBlockState(), LIGHT_GRAY_TERRACOTTA = Blocks.DYED_TERRACOTTA.lightGray().defaultBlockState();
     /** Badlands rock colors, plain and orange the most common. */
-    private static final BlockState[] BANDS = {TERRACOTTA, Blocks.ORANGE_TERRACOTTA.defaultBlockState(), Blocks.YELLOW_TERRACOTTA.defaultBlockState(),
-            Blocks.BROWN_TERRACOTTA.defaultBlockState(), Blocks.RED_TERRACOTTA.defaultBlockState(), Blocks.WHITE_TERRACOTTA.defaultBlockState(),
-            Blocks.LIGHT_GRAY_TERRACOTTA.defaultBlockState()};
+    private static final BlockState[] BANDS = {TERRACOTTA, Blocks.DYED_TERRACOTTA.orange().defaultBlockState(), Blocks.DYED_TERRACOTTA.yellow().defaultBlockState(),
+            Blocks.DYED_TERRACOTTA.brown().defaultBlockState(), Blocks.DYED_TERRACOTTA.red().defaultBlockState(), Blocks.DYED_TERRACOTTA.white().defaultBlockState(),
+            Blocks.DYED_TERRACOTTA.lightGray().defaultBlockState()};
 
     private final EarthSettings settings;
     private final MercatorGrid grid;
