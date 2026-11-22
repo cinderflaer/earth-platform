@@ -211,7 +211,6 @@ public final class EarthClouds {
         GpuTextureView texture = minecraft.getTextureManager().getTexture(soft()).getTextureView();
         double step = 2 * radius / GRID;
         float[] clear = clearance(deck, camX, camZ, radius, step);
-        MeshData mesh;
         // The vertices stay relative to the camera; the view's turn goes in as the model-view, with the game's projection.
         try (ByteBufferBuilder bytes = new ByteBufferBuilder(1 << 18)) {
             BufferBuilder buffer = new BufferBuilder(bytes, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
@@ -229,9 +228,8 @@ public final class EarthClouds {
                     }
                 }
             }
-            mesh = buffer.buildOrThrow();
-        }
-        try (mesh) {
+            // The builder's memory must outlive the mesh: closing it first invalidates the mesh's buffers.
+            try (MeshData mesh = buffer.buildOrThrow()) {
             int indices = mesh.drawState().indexCount();
             if (indices == 0) return true;
             var device = RenderSystem.getDevice();
@@ -251,6 +249,7 @@ public final class EarthClouds {
                 }
             } finally {
                 vertices.close();
+            }
             }
         }
         return true;
