@@ -34,13 +34,13 @@ class FarWaterGridTest {
     @BeforeAll static void fluidTags() {
         SurfacePacketFixtures.biomes();
         var registry = BuiltInRegistries.FLUID;
-        previousFluidTags = registry.getTags().collect(Collectors.toMap(p -> p.getFirst(), p -> p.getSecond().stream().toList()));
+        previousFluidTags = io.earthplatform.minecraft.cubic.testsupport.BoundTags.get(registry);
         var tags = new HashMap<>(previousFluidTags);
         tags.put(FluidTags.WATER, List.of(registry.wrapAsHolder(Fluids.WATER), registry.wrapAsHolder(Fluids.FLOWING_WATER)));
-        registry.bindTags(tags);
+        io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(registry, tags);
     }
 
-    @AfterAll static void restoreTags() { BuiltInRegistries.FLUID.bindTags(previousFluidTags); }
+    @AfterAll static void restoreTags() { io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(BuiltInRegistries.FLUID, previousFluidTags); }
 
     @Test void wideWaterIsCutForTheCurveOnlyWhenTheJobSaysSo() throws Exception {
         int level = Far.MAX_LEVEL;
@@ -65,7 +65,7 @@ class FarWaterGridTest {
     }
 
     private static FarMesher.Side sea() {
-        LevelChunkSection section = new LevelChunkSection(SurfacePacketFixtures.biomes());
+        LevelChunkSection section = new LevelChunkSection(io.earthplatform.minecraft.cubic.gen.SurfacePacketFixtures.factory(SurfacePacketFixtures.biomes()));
         for (int z = 0; z < 16; z++) for (int x = 0; x < 16; x++) {
             for (int y = 0; y < 4; y++) section.setBlockState(x, y, z, Blocks.STONE.defaultBlockState(), false);
             for (int y = 4; y < 8; y++) section.setBlockState(x, y, z, Blocks.WATER.defaultBlockState(), false);

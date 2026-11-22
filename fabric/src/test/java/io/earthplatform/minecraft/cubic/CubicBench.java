@@ -285,7 +285,7 @@ class CubicBench {
         }
         digest.update(ids);
         for (int i = 0; i < 64; i++) {
-            digest.update(section.getBiomes().get(i & 3, i >> 4, i >> 2 & 3).unwrapKey().orElseThrow().location().toString()
+            digest.update(section.getBiomes().get(i & 3, i >> 4, i >> 2 & 3).unwrapKey().orElseThrow().identifier().toString()
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
     }

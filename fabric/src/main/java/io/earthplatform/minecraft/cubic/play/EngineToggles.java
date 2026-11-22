@@ -187,10 +187,8 @@ public final class EngineToggles {
             on(CLIENT, Group.SPEEDUPS, "far.recentLooks", RESTART),
             on(CLIENT, Group.SPEEDUPS, "far.cullTree", RESTART),
             on(CLIENT, Group.SPEEDUPS, "cubes.skipBuried", RESTART),
-            on(CLIENT, Group.SPEEDUPS, "cubes.reusePose", RESTART),
             on(CLIENT, Group.SPEEDUPS, "cubes.occlusionFront", RESTART),
             on(CLIENT, Group.SPEEDUPS, "cubes.regions", RESTART),
-            on(CLIENT, Group.SPEEDUPS, "cubic.lightmapRing", RESTART),
             // client file, diagnostics
             off(CLIENT, Group.DIAGNOSTICS, "far.checkWalk", RESTART, DIAGNOSTIC),
             off(CLIENT, Group.DIAGNOSTICS, "far.checkMask", RESTART, DIAGNOSTIC),

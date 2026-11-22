@@ -14,7 +14,7 @@ class VegetationTest {
     @Test void sandyColumnsObserveTheGeneratorCactusRange() {
         var biomes = SurfacePacketFixtures.biomes();
         var sand = Blocks.RED_SAND.defaultBlockState();
-        var desert = new SurfaceGenerator.Surface(biomes.getHolderOrThrow(Biomes.DESERT), sand, sand,
+        var desert = new SurfaceGenerator.Surface(biomes.getOrThrow(Biomes.DESERT), sand, sand,
                 0, 0, 0, 0, 1000, false);
         var generator = new SurfaceGenerator(0, biomes, RandomSource.create(0)) {
             @Override protected boolean cacti(int x, int z) { return x >= 8; }
@@ -29,7 +29,7 @@ class VegetationTest {
         Arrays.fill(water, SurfaceGenerator.DRY);
         var surface = new SurfaceGenerator.Surface[16 * 16];
         Arrays.fill(surface, desert);
-        var section = new LevelChunkSection(biomes);
+        var section = new LevelChunkSection(io.earthplatform.minecraft.cubic.gen.SurfacePacketFixtures.factory(biomes));
 
         new Vegetation(generator).decorate(section, 0, 0, 0, height, water, surface);
 

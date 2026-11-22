@@ -37,16 +37,15 @@ class SpawnInfoWireTest {
         net.minecraft.SharedConstants.tryDetectVersion();
         net.minecraft.server.Bootstrap.bootStrap();
         MappedRegistry<DimensionType> types = new MappedRegistry<>(Registries.DIMENSION_TYPE, Lifecycle.stable());
-        type = Registry.registerForHolder(types, BuiltinDimensionTypes.OVERWORLD, new DimensionType(OptionalLong.empty(), true, false, false, true,
-                1.0, true, false, -64, 384, 384, BlockTags.INFINIBURN_OVERWORLD, BuiltinDimensionTypes.OVERWORLD_EFFECTS, 0f,
-                new DimensionType.MonsterSettings(false, true, net.minecraft.util.valueproviders.UniformInt.of(0, 7), 0)));
+        type = Registry.registerForHolder(types, BuiltinDimensionTypes.OVERWORLD,
+                net.minecraft.data.registries.VanillaRegistries.createLookup().lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(BuiltinDimensionTypes.OVERWORLD).value());
         types.freeze();
         access = new RegistryAccess.ImmutableRegistryAccess(List.of(types));
     }
 
     private static RegistryFriendlyByteBuf write(BlockPos death) {
         var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), access);
-        new CommonPlayerSpawnInfo(type, CUBIC, 42L, GameType.SURVIVAL, null, false, true, Optional.of(GlobalPos.of(CUBIC, death)), 0).write(buffer);
+        new CommonPlayerSpawnInfo(type, CUBIC, 42L, GameType.SURVIVAL, null, false, true, Optional.of(GlobalPos.of(CUBIC, death)), 0, 63).write(buffer);
         return buffer;
     }
 
@@ -62,6 +61,7 @@ class SpawnInfoWireTest {
         buffer.readBoolean();
         buffer.readResourceKey(Registries.DIMENSION);
         BlockPos death = BlockPos.of(buffer.readLong());
+        buffer.readVarInt();
         buffer.readVarInt();
         assertEquals(0, buffer.readableBytes(), "bytes past the vanilla layout");
         return death;

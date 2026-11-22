@@ -15,7 +15,7 @@ class CubeSnapshotCacheTest {
     @BeforeAll static void bootstrap() { SurfacePacketFixtures.biomes(); }
 
     static PalettedContainer<BlockState> section(BlockState state) {
-        return new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, state, PalettedContainer.Strategy.SECTION_STATES);
+        return new PalettedContainer<>(state, net.minecraft.world.level.chunk.Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY));
     }
 
     @Test void adjacentJobsReuseCopiesAndMatchEveryFreshSnapshotBlock() {

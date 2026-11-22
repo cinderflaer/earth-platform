@@ -110,9 +110,9 @@ class ModOresTest {
     }
 
     @Test void modOreBuriesItselfUnderTheBiomeItWasAddedToAndNotInTheSeaOrTheAir() {
-        Flat plains = new Flat(3, biomes, biomes.getHolderOrThrow(Biomes.PLAINS), 80, 64);
-        Flat sea = new Flat(3, biomes, biomes.getHolderOrThrow(Biomes.PLAINS), 40, 64);
-        Flat desert = new Flat(3, biomes, biomes.getHolderOrThrow(Biomes.DESERT), 80, 64);
+        Flat plains = new Flat(3, biomes, biomes.getOrThrow(Biomes.PLAINS), 80, 64);
+        Flat sea = new Flat(3, biomes, biomes.getOrThrow(Biomes.PLAINS), 40, 64);
+        Flat desert = new Flat(3, biomes, biomes.getOrThrow(Biomes.DESERT), 80, 64);
         Count land = count(plains, 0, 0, 3, 3);
         Count ocean = count(sea, 0, 0, 3, 3);
         Count dry = count(desert, 0, 0, 3, 3);
@@ -123,7 +123,7 @@ class ModOresTest {
         assertEquals(0, ocean.exposed, "in the water or on the seabed " + ocean);
         assertEquals(0, dry.ore, "desert was not given this ore");
         // The same cubes, asked for again in another order, keep the same ore.
-        assertEquals(land.ore, count(new Flat(3, biomes, biomes.getHolderOrThrow(Biomes.PLAINS), 80, 64), 3, 3, 0, 0).ore);
+        assertEquals(land.ore, count(new Flat(3, biomes, biomes.getOrThrow(Biomes.PLAINS), 80, 64), 3, 3, 0, 0).ore);
     }
 
     private static Count count(Flat world, int x0, int z0, int x1, int z1) {

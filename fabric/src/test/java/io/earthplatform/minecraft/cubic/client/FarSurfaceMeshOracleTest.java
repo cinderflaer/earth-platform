@@ -18,20 +18,20 @@ class FarSurfaceMeshOracleTest {
     @org.junit.jupiter.api.BeforeAll static void fluidTags() {
         SurfacePacketFixtures.biomes();
         var registry = net.minecraft.core.registries.BuiltInRegistries.FLUID;
-        previousFluidTags = registry.getTags().collect(java.util.stream.Collectors.toMap(p -> p.getFirst(), p -> p.getSecond().stream().toList()));
+        previousFluidTags = io.earthplatform.minecraft.cubic.testsupport.BoundTags.get(registry);
         var tags = new java.util.HashMap<>(previousFluidTags);
         tags.put(net.minecraft.tags.FluidTags.WATER, java.util.List.of(registry.wrapAsHolder(net.minecraft.world.level.material.Fluids.WATER), registry.wrapAsHolder(net.minecraft.world.level.material.Fluids.FLOWING_WATER)));
-        registry.bindTags(tags);
+        io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(registry, tags);
         var blocks=net.minecraft.core.registries.BuiltInRegistries.BLOCK;
-        previousBlockTags=blocks.getTags().collect(java.util.stream.Collectors.toMap(p -> p.getFirst(), p -> p.getSecond().stream().toList()));
+        previousBlockTags=blocks.getTags().collect(java.util.stream.Collectors.toMap(p -> p.key(), p -> p.stream().toList()));
         var blockTags=new java.util.HashMap<>(previousBlockTags);
         blockTags.put(net.minecraft.tags.BlockTags.LEAVES,blocks.stream().filter(b -> b instanceof net.minecraft.world.level.block.LeavesBlock).map(blocks::wrapAsHolder).toList());
         blockTags.put(net.minecraft.tags.BlockTags.LOGS,java.util.List.of(blocks.wrapAsHolder(net.minecraft.world.level.block.Blocks.OAK_LOG)));
-        blocks.bindTags(blockTags);
+        io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(blocks, blockTags);
     }
     @org.junit.jupiter.api.AfterAll static void restoreTags() {
-        net.minecraft.core.registries.BuiltInRegistries.FLUID.bindTags(previousFluidTags);
-        net.minecraft.core.registries.BuiltInRegistries.BLOCK.bindTags(previousBlockTags);
+        io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(net.minecraft.core.registries.BuiltInRegistries.FLUID, previousFluidTags);
+        io.earthplatform.minecraft.cubic.testsupport.BoundTags.set(net.minecraft.core.registries.BuiltInRegistries.BLOCK, previousBlockTags);
     }
     @SuppressWarnings("unchecked") private static FarFaces faces(LevelChunkSection[] sections) throws Exception {
         FarFaces result = new FarFaces();
@@ -80,15 +80,15 @@ class FarSurfaceMeshOracleTest {
         ByteBuffer av = a.mesh().vertexBuffer(), bv = b.mesh().vertexBuffer();
         assertEquals(av.remaining(), bv.remaining());
         int stride = da.format().getVertexSize();
-        // Declared BLOCK attributes occupy bytes 0..30; byte 31 is uninitialized alignment padding.
-        assertEquals(32, stride);
-        for (int i = 0; i < av.remaining(); i++) if (i % stride != 31) assertEquals(av.get(av.position() + i), bv.get(bv.position() + i));
+        // Since 26.2 the BLOCK attributes fill the whole 28-byte stride, so there is no alignment padding to skip.
+        assertEquals(28, stride);
+        for (int i = 0; i < av.remaining(); i++) assertEquals(av.get(av.position() + i), bv.get(bv.position() + i));
         assertEquals(a.mesh().indexBuffer(), b.mesh().indexBuffer());
     }
     @Test void distantCanopyUsesTheSurfaceWithoutOversizedLeafBoxes() throws Exception {
         var leaves = net.minecraft.world.level.block.Blocks.OAK_LEAVES.defaultBlockState();
         var stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
-        var section = new LevelChunkSection(SurfacePacketFixtures.biomes());
+        var section = new LevelChunkSection(io.earthplatform.minecraft.cubic.gen.SurfacePacketFixtures.factory(SurfacePacketFixtures.biomes()));
         for (int z=0; z<16; z++) for (int x=0; x<16; x++) {
             for (int y=0; y<4; y++) section.setBlockState(x,y,z,stone,false);
             if (x>=6 && x<=9 && z>=6 && z<=9) section.setBlockState(x,4,z,leaves,false);
@@ -182,7 +182,7 @@ class FarSurfaceMeshOracleTest {
         try{equal(a,b);}finally{a.free();b.free();}
     }
     private static FarColumn flatColumn() {
-        var biome=SurfacePacketFixtures.biomes().getHolderOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
+        var biome=SurfacePacketFixtures.biomes().getOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
         var run=List.of(new FarSurfacePacket.Run(4,net.minecraft.world.level.block.Blocks.STONE.defaultBlockState()),
                 new FarSurfacePacket.Run(16,net.minecraft.world.level.block.Blocks.AIR.defaultBlockState()));
         FarColumn column=new FarColumn();
